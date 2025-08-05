@@ -29,10 +29,23 @@ Turn your Ubuntu machine (physical or virtualized in Proxmox) into a blazing fas
 To install everything in one go:
 
 ```bash
-cd server
-chmod +x install.sh
+chmod +x server/**/*.sh
 ./install.sh
-````
+```
+
+### Optional: copy the server folder to a system path for global usage
+
+```bash
+sudo cp -r server /usr/local/bin/wifi
+```
+
+### Set environment variables and alias for easy access (in ~/.bashrc)
+```bash
+echo "export WIFI=\"$(pwd)\"" >> ~/.bashrc
+echo "export WIFI_CLI='/usr/local/bin/wifi'" >> ~/.bashrc
+echo "alias wifi='/usr/local/bin/wifi/start.sh'" >> ~/.bashrc
+source ~/.bashrc
+```
 
 This will sequentially run all scripts located in `server/scripts/`, with real-time logs, colors, and traps for errors.
 
