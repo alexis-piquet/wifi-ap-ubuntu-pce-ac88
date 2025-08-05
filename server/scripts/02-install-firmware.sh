@@ -6,14 +6,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FIRMWARE_DIR="/lib/firmware/brcm"
 MODULES_DIR="/lib/modules/$(uname -r)/kernel/drivers/net/wireless"
-DHD_MODULE_DEST="$MODULES_DIR/dhd.ko"
-
 BIN_FILE="$FIRMWARE_DIR/brcmfmac4366c-pcie.bin"
 TXT_FILE="$FIRMWARE_DIR/brcmfmac4366c-pcie.txt"
 
 LOCAL_BIN="$SCRIPT_DIR/../bin/brcmfmac4366c-pcie.bin"
 LOCAL_TXT="$SCRIPT_DIR/../bin/brcmfmac4366c-pcie.txt"
-ASUS_FW_ZIP="$SCRIPT_DIR/../bin/FW_RT_AC88U_300438445149.zip"
+
+# ASUS firmware ZIP contents
+ZIP_PATH="$SCRIPT_DIR/../bin/FW_RT_AC88U_300438445149.zip"
+TRX_PATH="RT-AC88U/RT-AC88U_3.0.0.4_384_45149-g467037b.trx"
+KO_PATH="lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko"
+EXTRACTED_KO_LOCAL_PATH="$SCRIPT_DIR/../bin/dhd.ko"
 
 section "Broadcom 4366c Firmware Setup"
 
@@ -33,10 +36,9 @@ if [[ -f "$LOCAL_TXT" ]]; then
   ok "TXT firmware copied"
 fi
 
-# -- Remove invalid .txt if empty
+# -- Warn about empty TXT but don't delete
 if [[ -f "$TXT_FILE" && ! -s "$TXT_FILE" ]]; then
-  warn "Removing invalid or empty firmware TXT file"
-  sudo rm -f "$TXT_FILE"
+  warn "Firmware TXT file exists but is empty – leaving it in place"
 fi
 
 # -- Download firmware if still missing
@@ -53,18 +55,11 @@ if [[ ! -f "$TXT_FILE" ]]; then
 fi
 
 # -- Validate TXT content
-if [[ ! -s "$TXT_FILE" || $(stat -c%s "$TXT_FILE") -lt 32 ]]; then
-  warn "Firmware TXT file is missing or too small, skipping"
-  warn "This may reduce available channels or cause regulatory limitations"
-  sudo rm -f "$TXT_FILE"
+if [[ -s "$TXT_FILE" && $(stat -c%s "$TXT_FILE") -lt 32 ]]; then
+  warn "Firmware TXT file is very small (<32 bytes) – may cause limitations"
 fi
 
-# -- Extract dhd.ko from ASUS firmware ZIP for reference
-ZIP_PATH="$SCRIPT_DIR/../bin/FW_RT_AC88U_300438445149.zip"
-TRX_PATH="RT-AC88U/RT-AC88U_3.0.0.4_384_45149-g467037b.trx"
-KO_PATH="lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko"
-DHD_MODULE_DEST="$SCRIPT_DIR/../bin/dhd.ko"
-
+# -- Extract dhd.ko from ASUS firmware (for reference only)
 step "Extracting dhd.ko from ASUS firmware ZIP"
 
 if [[ -f "$ZIP_PATH" ]]; then
@@ -75,8 +70,8 @@ if [[ -f "$ZIP_PATH" ]]; then
   7z x "$TRX_PATH" "$KO_PATH" >/dev/null || true
 
   if [[ -f "$KO_PATH" ]]; then
-    cp "$KO_PATH" "$DHD_MODULE_DEST"
-    ok "dhd.ko extracted to $DHD_MODULE_DEST"
+    cp "$KO_PATH" "$EXTRACTED_KO_LOCAL_PATH"
+    ok "dhd.ko extracted to $EXTRACTED_KO_LOCAL_PATH (for reference only)"
   else
     warn "dhd.ko not found inside the ASUS firmware TRX"
   fi
@@ -87,24 +82,25 @@ else
   warn "ASUS firmware ZIP not found, skipping dhd.ko extraction"
 fi
 
-
-# -- Unblock Wi-Fi if blocked
+# -- Unblock Wi-Fi if needed
 if rfkill list | grep -q "Soft blocked: yes"; then
   step "Unblocking Wi-Fi interfaces"
   sudo rfkill unblock all
   ok "Wi-Fi unblocked"
 fi
 
-# -- Reload Wi-Fi modules
+# -- Reload modules (safely)
 step "Reloading Wi-Fi modules"
 sudo modprobe -r brcmfmac || true
 sudo modprobe -r dhd || true
 sleep 1
 
-if [[ -f "$DHD_MODULE_DEST" ]]; then
-  sudo insmod "$DHD_MODULE_DEST"
-  ok "dhd module inserted"
+if [[ -f "$EXTRACTED_KO_LOCAL_PATH" ]]; then
+  warn "Skipping insmod of $EXTRACTED_KO_LOCAL_PATH (not compatible with current kernel)"
+  info "If you want to use this driver, compile it from source for kernel $(uname -r)"
 else
   sudo modprobe brcmfmac
   ok "brcmfmac module loaded"
 fi
+
+summary "Firmware setup complete. Use 'iw phy' or 'dmesg' to verify the Wi-Fi driver."

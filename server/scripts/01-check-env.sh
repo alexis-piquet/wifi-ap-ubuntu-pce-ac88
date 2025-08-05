@@ -10,9 +10,13 @@ step "Detecting interfaces via nmcli"
 ethernet_id=$(nmcli dev status | awk '{print $1}' | grep -E '^en' | head -n1 || true)
 wireless_id=$(nmcli dev status | awk '{print $1}' | grep -E '^wl' | head -n1 || true)
 
-if [[ -z "${ethernet_id}" || -z "${wireless_id}" ]]; then
-  error "Interfaces not found (ethernet='${ethernet_id:-}' wifi='${wireless_id:-}')."
+if [[ -z "${ethernet_id}" ]]; then
+  error "Ethernet interface not found"
   exit 1
+fi
+
+if [[ -z "${wireless_id}" ]]; then
+  warn "Wi-Fi interface not found (yet) — this may be expected before firmware setup"
 fi
 
 info  "Ethernet: ${BOLD}$ethernet_id${NC}"
