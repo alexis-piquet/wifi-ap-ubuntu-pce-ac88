@@ -17,11 +17,22 @@ step "Installing required packages"
 sudo apt install -y ipset dnsmasq iptables
 
 step "Cleaning existing ipsets and iptables rules"
-sudo ipset destroy whitelist 2>/dev/null || true
-sudo ipset destroy allow_all 2>/dev/null || true
+
+# Remove iptables rules
 sudo iptables -D FORWARD -m set --match-set allow_all src -j ACCEPT 2>/dev/null || true
 sudo iptables -D FORWARD -m set --match-set whitelist dst -j ACCEPT 2>/dev/null || true
 sudo iptables -D FORWARD -j REJECT 2>/dev/null || true
+
+# Properly flush and destroy ipsets (avoid creation errors)
+if sudo ipset list allow_all &>/dev/null; then
+  sudo ipset flush allow_all || true
+  sudo ipset destroy allow_all || true
+fi
+
+if sudo ipset list whitelist &>/dev/null; then
+  sudo ipset flush whitelist || true
+  sudo ipset destroy whitelist || true
+fi
 
 step "Creating ipsets"
 sudo ipset create whitelist hash:ip
@@ -42,9 +53,14 @@ while IFS= read -r ip; do
 done < "$ALLOW_ALL_IPS_FILE"
 
 step "Setting iptables rules"
-sudo iptables -A FORWARD -m set --match-set allow_all src -j ACCEPT
-sudo iptables -A FORWARD -m set --match-set whitelist dst -j ACCEPT
-sudo iptables -A FORWARD -j REJECT
+sudo iptables -C FORWARD -m set --match-set allow_all src -j ACCEPT 2>/dev/null || \
+  sudo iptables -A FORWARD -m set --match-set allow_all src -j ACCEPT
+
+sudo iptables -C FORWARD -m set --match-set whitelist dst -j ACCEPT 2>/dev/null || \
+  sudo iptables -A FORWARD -m set --match-set whitelist dst -j ACCEPT
+
+sudo iptables -C FORWARD -j REJECT 2>/dev/null || \
+  sudo iptables -A FORWARD -j REJECT
 
 step "Saving ipsets"
 sudo ipset save | sudo tee /etc/ipset.conf > /dev/null
