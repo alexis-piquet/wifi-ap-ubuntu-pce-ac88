@@ -23,7 +23,7 @@ elif [[ ! -f "$BIN_FILE" ]]; then
   ok "BIN firmware downloaded"
 fi
 
-summary "Firmware ready in $FIRMWARE_DIR (check with 'dmesg | grep brcmfmac')"
+info "Firmware ready in $FIRMWARE_DIR (check with dmesg | grep brcmfmac)"
 
 modprobe -r brcmfmac
 modprobe brcmfmac

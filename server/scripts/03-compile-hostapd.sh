@@ -37,4 +37,4 @@ step "Installing hostapd"
 sudo make install
 
 ok "hostapd compiled and installed"
-summary "You can now run hostapd with your config. Try 'hostapd -v'."
+info "You can now run hostapd with your config. Try 'hostapd -v'."
