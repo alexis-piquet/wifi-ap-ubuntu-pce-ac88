@@ -10,13 +10,14 @@ cd "$(dirname "$0")"
 section "WIFI ACCESS POINT - FULL INSTALLATION"
 
 SCRIPTS=(
-  "00-check-env.sh"
-  "01-install-firmware.sh"
-  "02-compile-hostapd.sh"
-  "03-configure-network.sh"
-  "04-configure-dnsmasq.sh"
-  "05-enable-nat.sh"
-  "06-enable-services.sh"
+  "00-install-dependencies.sh"
+  "01-check-env.sh"
+  "02-install-firmware.sh"
+  "03-compile-hostapd.sh"
+  "04-configure-network.sh"
+  "05-configure-dnsmasq.sh"
+  "06-enable-nat.sh"
+  "07-enable-services.sh"
   "99-test-and-debug.sh"
 )
 
