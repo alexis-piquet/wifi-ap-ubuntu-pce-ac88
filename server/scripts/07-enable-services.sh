@@ -28,13 +28,13 @@ else
   echo "interface=$wireless_id" | sudo tee -a /etc/hostapd/hostapd.conf >/dev/null
 fi
 
-# if [[ -n "${bridge_id:-}" ]]; then
-#   if grep -q '^bridge=' /etc/hostapd/hostapd.conf; then
-#     sudo sed -i "s/^bridge=.*/bridge=$bridge_id/" /etc/hostapd/hostapd.conf
-#   else
-#     echo "bridge=$bridge_id" | sudo tee -a /etc/hostapd/hostapd.conf >/dev/null
-#   fi
-# fi
+if [[ -n "${bridge_id:-}" ]]; then
+  if grep -q '^bridge=' /etc/hostapd/hostapd.conf; then
+    sudo sed -i "s/^bridge=.*/bridge=$bridge_id/" /etc/hostapd/hostapd.conf
+  else
+    echo "bridge=$bridge_id" | sudo tee -a /etc/hostapd/hostapd.conf >/dev/null
+  fi
+fi
 
 # Copier l'unité systemd
 sudo cp "$SCRIPT_DIR/../config/hostapd.service" /etc/systemd/system/hostapd.service
