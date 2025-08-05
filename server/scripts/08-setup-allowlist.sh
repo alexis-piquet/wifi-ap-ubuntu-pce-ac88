@@ -70,7 +70,4 @@ sudo cp "$PROJECT_ROOT/config/ipset-restore.service" "$IPSET_RESTORE_SERVICE"
 sudo systemctl daemon-reload
 sudo systemctl enable ipset-restore.service
 
-step "Running ipset restore immediately"
-sudo systemctl start ipset-restore.service
-
 ok "Allowlist filtering set up successfully"
