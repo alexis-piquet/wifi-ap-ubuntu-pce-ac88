@@ -19,24 +19,18 @@ sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null 
 step "Restarting NetworkManager"
 sudo systemctl restart NetworkManager
 
+step "Cleaning iptables rules using ipsets"
+
+sudo iptables -t nat -D PREROUTING -m set --match-set allow_all dst -j RETURN 2>/dev/null || true
+sudo iptables -t nat -D PREROUTING -m set --match-set whitelist dst -j RETURN 2>/dev/null || true
+
 step "Cleaning existing ipsets before restore"
-if sudo ipset list allow_all &>/dev/null; then
-  sudo ipset flush allow_all || true
-  sudo ipset destroy allow_all || true
-fi
-
-if sudo ipset list whitelist &>/dev/null; then
-  sudo ipset flush whitelist || true
-  sudo ipset destroy whitelist || true
-fi
-
-step "Restoring ipset rules (runtime)"
-if [[ -f /etc/ipset.conf ]]; then
-  sudo ipset restore < /etc/ipset.conf
-  ok "ipsets restored from /etc/ipset.conf"
-else
-  warn "No ipset.conf found — skipping restore"
-fi
+for setname in allow_all whitelist; do
+  if sudo ipset list "$setname" &>/dev/null; then
+    sudo ipset flush "$setname" || true
+    sudo ipset destroy "$setname" || true
+  fi
+done
 
 step "Restarting dnsmasq (via NetworkManager)"
 sudo systemctl restart systemd-resolved
