@@ -17,13 +17,12 @@ step "Installing required packages"
 sudo apt install -y ipset dnsmasq iptables
 
 step "Cleaning existing ipsets and iptables rules"
-
 # Remove iptables rules
 sudo iptables -D FORWARD -m set --match-set allow_all src -j ACCEPT 2>/dev/null || true
 sudo iptables -D FORWARD -m set --match-set whitelist dst -j ACCEPT 2>/dev/null || true
 sudo iptables -D FORWARD -j REJECT 2>/dev/null || true
 
-# Properly flush and destroy ipsets (avoid creation errors)
+# Flush and destroy ipsets only if they exist
 if sudo ipset list allow_all &>/dev/null; then
   sudo ipset flush allow_all || true
   sudo ipset destroy allow_all || true
@@ -69,5 +68,9 @@ step "Installing ipset-restore systemd service"
 sudo cp "$PROJECT_ROOT/config/ipset-restore.service" "$IPSET_RESTORE_SERVICE"
 sudo systemctl daemon-reload
 sudo systemctl enable ipset-restore.service
+
+step "Restoring ipsets immediately"
+
+sudo systemctl start ipset-restore.service || echo "Note: sets already exist, skipping start."
 
 ok "Allowlist filtering set up successfully"

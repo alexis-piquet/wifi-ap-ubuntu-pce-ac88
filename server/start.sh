@@ -19,9 +19,6 @@ sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null 
 step "Reloading systemd services"
 sudo systemctl daemon-reexec
 
-step "Restarting networking"
-sudo systemctl restart networking
-
 step "Restarting NetworkManager"
 sudo systemctl restart NetworkManager
 
