@@ -19,11 +19,21 @@ sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null 
 step "Restarting NetworkManager"
 sudo systemctl restart NetworkManager
 
+step "Cleaning existing ipsets before restore"
+if sudo ipset list allow_all &>/dev/null; then
+  sudo ipset flush allow_all || true
+  sudo ipset destroy allow_all || true
+fi
+
+if sudo ipset list whitelist &>/dev/null; then
+  sudo ipset flush whitelist || true
+  sudo ipset destroy whitelist || true
+fi
+
 step "Restoring ipset rules (runtime)"
 if [[ -f /etc/ipset.conf ]]; then
   sudo ipset restore < /etc/ipset.conf
   ok "ipsets restored from /etc/ipset.conf"
-  sudo ipset list
 else
   warn "No ipset.conf found — skipping restore"
 fi
