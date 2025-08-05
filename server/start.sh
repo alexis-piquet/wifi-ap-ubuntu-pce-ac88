@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Load log functions and env
+. "$(dirname "$0")/lib/log.sh"
+. .env
+
+section "STARTING WI-FI ACCESS POINT"
+
+step "Enabling IPv4 forwarding (runtime)"
+sudo sysctl -w net.ipv4.ip_forward=1
+
+step "Ensuring NAT is configured"
+sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null || {
+  sudo iptables -t nat -A POSTROUTING -o "$ethernet_id" -j MASQUERADE
+  info "NAT rule added to iptables"
+}
+
+step "Reloading systemd services"
+sudo systemctl daemon-reexec
+
+step "Restarting networking"
+sudo systemctl restart networking
+
+step "Restarting NetworkManager"
+sudo systemctl restart NetworkManager
+
+step "Restarting dnsmasq (via NetworkManager)"
+sudo systemctl restart systemd-resolved
+
+step "Starting hostapd service"
+sudo systemctl restart hostapd
+
+sleep 2
+
+# Check service status
+if systemctl is-active --quiet hostapd; then
+  ok "hostapd is running"
+else
+  error "hostapd failed to start"
+  sudo journalctl -u hostapd --no-pager -n 20
+  exit 1
+fi
+
+step "Checking interface IP assignment"
+ip addr show "$wireless_id" | grep "inet " || warn "$wireless_id has no IP assigned"
+
+step "Connected clients on $wireless_id"
+sudo iw dev "$wireless_id" station dump || info "No clients connected"
+
+ok "Access point is up and running"

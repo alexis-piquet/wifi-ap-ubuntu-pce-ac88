@@ -1,0 +1,4 @@
+auto wlp2s0
+iface wlp2s0 inet static
+  address 10.0.0.1
+  netmask 255.255.255.0
