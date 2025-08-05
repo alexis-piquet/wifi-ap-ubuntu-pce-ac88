@@ -48,14 +48,20 @@ sudo nmcli con add type bridge ifname br0 con-name br0
 sudo nmcli con add type ethernet ifname "$ethernet_id" master br0 con-name "bridge-slave-$ethernet_id"
 sudo nmcli con modify br0 ipv4.method auto
 
-# Wait a moment for interface to appear
+# Wait for br0 to appear as a network device
 for i in {1..5}; do
   if ip link show br0 &>/dev/null; then
+    ok "br0 device is now available"
     break
   fi
-  info "Waiting for br0 to become available..."
+  warn "Waiting for br0 device to become available..."
   sleep 1
 done
+
+if ! ip link show br0 &>/dev/null; then
+  error "Timeout: br0 device never appeared"
+  exit 1
+fi
 
 # Bring up bridge
 sudo nmcli con up br0 || {
