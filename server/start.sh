@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Load log functions and env
-. "$(dirname "$0")/lib/log.sh"
+. lib/log.sh
 . .env
 
 section "STARTING WI-FI ACCESS POINT"
