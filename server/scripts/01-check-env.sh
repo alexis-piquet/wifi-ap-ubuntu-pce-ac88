@@ -37,16 +37,12 @@ bridge_id=""
 if ! ip link show br0 &>/dev/null; then
   info "Creating bridge br0 and attaching $ethernet_id"
 
-  # Supprimer si existait déjà
   sudo nmcli connection delete br0 &>/dev/null || true
   sudo nmcli connection delete "bridge-slave-$ethernet_id" &>/dev/null || true
 
-  # Créer la connexion bridge
   sudo nmcli connection add type bridge ifname br0 con-name br0
-  # Créer l'esclave associé au bridge
   sudo nmcli connection add type ethernet con-name "bridge-slave-$ethernet_id" ifname "$ethernet_id" master br0
 
-  # Attendre que l'interface soit reconnue
   for i in {1..5}; do
     if ip link show br0 &>/dev/null; then
       break
@@ -55,7 +51,6 @@ if ! ip link show br0 &>/dev/null; then
     sleep 1
   done
 
-  # Activer les connexions
   sudo nmcli connection up "bridge-slave-$ethernet_id" || {
     error "Failed to bring up bridge slave"
     exit 1
