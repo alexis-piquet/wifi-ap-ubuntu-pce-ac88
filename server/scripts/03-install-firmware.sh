@@ -4,15 +4,51 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 
+FIRMWARE_DIR="/bin"
+BIN_FILE="$FIRMWARE_DIR/brcmfmac4366c-pcie.bin"
+TXT_FILE="$FIRMWARE_DIR/brcmfmac4366c-pcie.txt"
 
-section "INSTALL FIRMWARE"
+section "Broadcom 4366c Firmware Check"
 
-step "Creating firmware directory"
-sudo mkdir -p /lib/firmware/brcm
+step "Ensuring firmware directory exists"
+sudo mkdir -p "$FIRMWARE_DIR"
 
-step "Downloading firmware files"
-sudo wget -O /lib/firmware/brcm/brcmfmac4366c-pcie.bin "https://gist.github.com/picchietti/337029cf1946ff9e43b0f57aa75f6556/raw/.../brcmfmac4366c-pcie.bin"
-sudo wget -O /lib/firmware/brcm/brcmfmac4366c-pcie.txt "https://gist.githubusercontent.com/.../brcmfmac4366c-pcie.txt"
+# -- Remove invalid txt file if it's 0 byte
+if [[ -f "$TXT_FILE" && ! -s "$TXT_FILE" ]]; then
+  warn "Removing invalid or empty firmware TXT file"
+  sudo rm -f "$TXT_FILE"
+fi
 
-ok "Firmware installed successfully"
-info "Reboot required if this is the first setup"
+# -- Download .bin if missing
+if [[ ! -f "$BIN_FILE" ]]; then
+  step "Downloading brcmfmac4366c-pcie.bin"
+  if ! sudo wget -q -O "$BIN_FILE" "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm/brcmfmac4366c-pcie.bin"; then
+    error "Failed to download firmware binary"
+    exit 1
+  fi
+  ok "Firmware BIN downloaded"
+fi
+
+# -- Download .txt if missing
+if [[ ! -f "$TXT_FILE" ]]; then
+  step "Downloading brcmfmac4366c-pcie.txt"
+  if ! sudo wget -q -O "$TXT_FILE" "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm/brcmfmac4366c-pcie.txt"; then
+    error "Failed to download firmware TXT"
+    exit 1
+  fi
+  ok "Firmware TXT downloaded"
+fi
+
+# -- Validate .txt is not empty
+if [[ ! -s "$TXT_FILE" || $(stat -c%s "$TXT_FILE") -lt 32 ]]; then
+  error "Firmware TXT file is invalid (too small or empty)"
+  warn "You must extract a valid brcmfmac4366c-pcie.txt from the ASUS Windows driver"
+  exit 1
+fi
+
+# -- Reload module
+step "Reloading brcmfmac module"
+sudo modprobe -r brcmfmac || true
+sleep 1
+sudo modprobe brcmfmac
+ok "brcmfmac module reloaded"
