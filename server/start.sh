@@ -35,6 +35,15 @@ done
 step "Restarting dnsmasq (via NetworkManager)"
 sudo systemctl restart systemd-resolved
 
+step "Setting regulatory domain and checking 5GHz availability"
+sudo iw reg set FR
+
+if ! iw list | grep -A20 "Band 2" | grep -q "5180 MHz"; then
+  error "5GHz channel 36 not available — check driver or regulatory domain"
+  iw list | grep -A20 "Band 2"
+  exit 1
+fi
+
 step "Starting hostapd service"
 sudo systemctl restart hostapd
 
