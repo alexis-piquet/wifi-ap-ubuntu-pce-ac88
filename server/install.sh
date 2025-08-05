@@ -18,6 +18,7 @@ SCRIPTS=(
   "05-configure-dnsmasq.sh"
   "06-enable-nat.sh"
   "07-enable-services.sh"
+  "08-setup-allowlist.sh"
   "99-test-and-debug.sh"
 )
 

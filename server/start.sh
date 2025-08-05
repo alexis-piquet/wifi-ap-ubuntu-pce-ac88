@@ -25,11 +25,27 @@ sudo systemctl restart networking
 step "Restarting NetworkManager"
 sudo systemctl restart NetworkManager
 
+step "Restoring ipset rules (runtime)"
+if [[ -f /etc/ipset.conf ]]; then
+  sudo ipset restore < /etc/ipset.conf
+  ok "ipsets restored from /etc/ipset.conf"
+  sudo ipset list
+else
+  warn "No ipset.conf found — skipping restore"
+fi
+
 step "Restarting dnsmasq (via NetworkManager)"
 sudo systemctl restart systemd-resolved
 
 step "Starting hostapd service"
 sudo systemctl restart hostapd
+
+step "Active iptables rules (nat + filter)"
+sudo iptables -L -n -v --line-numbers
+sudo iptables -t nat -L -n -v --line-numbers
+
+step "Active ipsets"
+sudo ipset list
 
 sleep 2
 
