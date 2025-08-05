@@ -54,9 +54,9 @@ fi
 
 # -- Validate TXT content
 if [[ ! -s "$TXT_FILE" || $(stat -c%s "$TXT_FILE") -lt 32 ]]; then
-  error "Firmware TXT file is invalid (too small or empty)"
-  warn "You must extract a valid brcmfmac4366c-pcie.txt from the ASUS Windows driver"
-  exit 1
+  warn "Firmware TXT file is missing or too small, skipping"
+  warn "This may reduce available channels or cause regulatory limitations"
+  sudo rm -f "$TXT_FILE"
 fi
 
 # -- Extract dhd.ko from ASUS firmware
