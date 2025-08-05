@@ -25,5 +25,5 @@ fi
 
 info "Firmware ready in $FIRMWARE_DIR (check with dmesg | grep brcmfmac)"
 
-modprobe -r brcmfmac
-modprobe brcmfmac
+sudo modprobe -r brcmfmac
+sudo modprobe brcmfmac
