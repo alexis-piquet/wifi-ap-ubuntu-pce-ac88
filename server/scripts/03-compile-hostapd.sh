@@ -13,7 +13,7 @@ cd "$BUILD_DIR"
 
 step "Cloning hostap.git (if not already)"
 if [[ ! -d "$REPO_DIR" ]]; then
-  git clone --depth=1 https://w1.fi/hostap.git
+  git clone --depth=1 https://w1.fi/hostap.git "$REPO_DIR"
 else
   info "hostap repository already exists"
 fi
@@ -23,8 +23,8 @@ cp defconfig .config
 
 step "Enabling nl80211 + ACS + 802.11n/ac"
 for flag in CONFIG_DRIVER_NL80211 CONFIG_LIBNL32 CONFIG_IEEE80211N CONFIG_IEEE80211AC CONFIG_ACS; do
-  if grep -q "^#*$flag" .config; then
-    sed -i "s/^#*$flag.*/$flag=y/" .config
+  if grep -Eq "^(#\s*)?$flag" .config; then
+    sed -i "s|^\s*#*\s*${flag}.*|${flag}=y|" .config
   elif ! grep -q "^$flag=y" .config; then
     echo "$flag=y" >> .config
   fi
