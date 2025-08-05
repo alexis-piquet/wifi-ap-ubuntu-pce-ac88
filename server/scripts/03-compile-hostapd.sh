@@ -13,7 +13,7 @@ cd "$BUILD_DIR"
 
 step "Cloning hostap.git (if not already)"
 if [[ ! -d "$REPO_DIR" ]]; then
-  git clone --depth=1 https://w1.fi/hostap.git "$REPO_DIR"
+  git clone --depth=1 https://github.com/pritambaral/hostapd.git "$REPO_DIR"
 else
   info "hostap repository already exists"
 fi

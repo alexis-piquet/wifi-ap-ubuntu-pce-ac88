@@ -32,8 +32,8 @@ if [[ -z "${wireless_id}" ]]; then
   warn "Wi-Fi interface not found (yet) — this may be expected before firmware setup"
 fi
 
-info  "Ethernet: ${BOLD}$ethernet_id${NC}"
-info  "Wireless: ${BOLD}$wireless_id${NC}"
+info  "Ethernet: $ethernet_id"
+info  "Wireless: $wireless_id"
 
 printf "export ethernet_id=%s\nexport wireless_id=%s\n" "$ethernet_id" "$wireless_id" > .env
 ok "Environment written to .env"
