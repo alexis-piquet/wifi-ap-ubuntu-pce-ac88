@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load log functions and env
+# Load helpers and environment variables
 . lib/log.sh
 . .env
 
-section "STARTING WI-FI ACCESS POINT"
+section "STARTING WI‑FI ACCESS POINT"
 
 step "Enabling IPv4 forwarding (runtime)"
 sudo sysctl -w net.ipv4.ip_forward=1
@@ -13,14 +13,11 @@ sudo sysctl -w net.ipv4.ip_forward=1
 step "Ensuring NAT is configured"
 sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null || {
   sudo iptables -t nat -A POSTROUTING -o "$ethernet_id" -j MASQUERADE
-  info "NAT rule added to iptables"
+  info "NAT POSTROUTING rule added"
 }
 
 step "Reloading systemd services"
-sudo systemctl daemon-reexec
-
-step "Restarting NetworkManager"
-sudo systemctl restart NetworkManager
+sudo systemctl daemon‑reexec
 
 step "Restoring ipset rules (runtime)"
 if [[ -f /etc/ipset.conf ]]; then
@@ -28,37 +25,37 @@ if [[ -f /etc/ipset.conf ]]; then
   ok "ipsets restored from /etc/ipset.conf"
   sudo ipset list
 else
-  warn "No ipset.conf found — skipping restore"
+  warn "No /etc/ipset.conf found — skipping restore"
 fi
 
-step "Restarting dnsmasq (via NetworkManager)"
-sudo systemctl restart systemd-resolved
+step "Restarting dnsmasq (standalone)"
+sudo systemctl restart dnsmasq
 
-step "Starting hostapd service"
+step "Restarting hostapd"
 sudo systemctl restart hostapd
 
-step "Active iptables rules (nat + filter)"
+step "Current iptables rules (filter and nat)"
 sudo iptables -L -n -v --line-numbers
 sudo iptables -t nat -L -n -v --line-numbers
 
-step "Active ipsets"
+step "Current ipsets"
 sudo ipset list
 
 sleep 2
 
-# Check service status
+# Confirm hostapd is running
 if systemctl is-active --quiet hostapd; then
-  ok "hostapd is running"
+  ok "hostapd service is running"
 else
   error "hostapd failed to start"
   sudo journalctl -u hostapd --no-pager -n 20
   exit 1
 fi
 
-step "Checking interface IP assignment"
+step "Verifying IP address on $wireless_id"
 ip addr show "$wireless_id" | grep "inet " || warn "$wireless_id has no IP assigned"
 
-step "Connected clients on $wireless_id"
+step "Connected stations on $wireless_id"
 sudo iw dev "$wireless_id" station dump || info "No clients connected"
 
-ok "Access point is up and running"
+ok "Wi-Fi Access Point is up and operational"
