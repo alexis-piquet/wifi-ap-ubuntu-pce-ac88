@@ -4,9 +4,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/sbin/ipset flush
-ExecStartPre=/usr/sbin/ipset destroy
-ExecStart=/sbin/ipset restore -f /etc/ipset.conf
+ExecStart=/sbin/ipset restore < /etc/ipset.conf
 RemainAfterExit=yes
 
 [Install]
