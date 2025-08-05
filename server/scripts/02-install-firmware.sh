@@ -59,32 +59,34 @@ if [[ ! -s "$TXT_FILE" || $(stat -c%s "$TXT_FILE") -lt 32 ]]; then
   sudo rm -f "$TXT_FILE"
 fi
 
-# -- Extract dhd.ko from ASUS firmware
-if [[ -f "$ASUS_FW_ZIP" ]]; then
-  step "Extracting dhd.ko from ASUS firmware ZIP"
-  mkdir -p /tmp/asus_fw
-  cp "$ASUS_FW_ZIP" /tmp/asus_fw/
-  cd /tmp/asus_fw
+# -- Extract dhd.ko from ASUS firmware ZIP for reference
+ZIP_PATH="$SCRIPT_DIR/../bin/FW_RT_AC88U_300438445149.zip"
+TRX_PATH="RT-AC88U/RT-AC88U_3.0.0.4_384_45149-g467037b.trx"
+KO_PATH="lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko"
+DHD_MODULE_DEST="$SCRIPT_DIR/../bin/dhd.ko"
 
-  # Extract TRX
-  7z x FW_RT_AC88U_300438445149.zip >/dev/null
-  7z x RT-AC88U/RT-AC88U_*.trx lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko >/dev/null
+step "Extracting dhd.ko from ASUS firmware ZIP"
 
-  if [[ -f "lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko" ]]; then
-    step "Copying dhd.ko to modules directory"
-    sudo mkdir -p "$MODULES_DIR"
-    sudo cp "lib/modules/2.6.36.4brcmarm/kernel/drivers/net/dhd/dhd.ko" "$DHD_MODULE_DEST"
-    ok "dhd.ko extracted and installed"
+if [[ -f "$ZIP_PATH" ]]; then
+  TMPDIR="$(mktemp -d)"
+  pushd "$TMPDIR" > /dev/null
+
+  7z x "$ZIP_PATH" >/dev/null
+  7z x "$TRX_PATH" "$KO_PATH" >/dev/null || true
+
+  if [[ -f "$KO_PATH" ]]; then
+    cp "$KO_PATH" "$DHD_MODULE_DEST"
+    ok "dhd.ko extracted to $DHD_MODULE_DEST"
   else
-    error "dhd.ko not found after extraction"
-    exit 1
+    warn "dhd.ko not found inside the ASUS firmware TRX"
   fi
 
-  # Cleanup
-  rm -rf /tmp/asus_fw
+  popd > /dev/null
+  rm -rf "$TMPDIR"
 else
   warn "ASUS firmware ZIP not found, skipping dhd.ko extraction"
 fi
+
 
 # -- Unblock Wi-Fi if blocked
 if rfkill list | grep -q "Soft blocked: yes"; then
