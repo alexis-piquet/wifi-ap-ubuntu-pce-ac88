@@ -40,7 +40,20 @@ if ! ip link show br0 &>/dev/null; then
   # Create bridge and attach Ethernet
   sudo nmcli connection add type bridge ifname br0 con-name br0
   sudo nmcli connection add type ethernet ifname "$ethernet_id" master br0
-  sudo nmcli connection up br0
+  for i in {1..5}; do
+    if ip link show br0 &>/dev/null; then
+      break
+    fi
+    info "Waiting for br0 to become available..."
+    sleep 1
+  done
+
+  # Activer la connexion
+  sudo nmcli connection up br0 || {
+    error "Failed to bring up bridge br0"
+    nmcli connection show
+    exit 1
+  }
   bridge_id="br0"
 else
   info "Bridge already exists: br0"
