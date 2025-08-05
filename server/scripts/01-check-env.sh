@@ -34,47 +34,44 @@ fi
 step "Checking for bridge (br0)"
 bridge_id=""
 
-# Delete old leftover connections if necessary
-if nmcli con show br0 &>/dev/null; then
-  sudo nmcli con delete br0 || true
+if ! ip link show br0 &>/dev/null; then
+  info "Creating bridge br0 and attaching $ethernet_id"
+
+  # Supprimer si existait déjà
+  sudo nmcli connection delete br0 &>/dev/null || true
+  sudo nmcli connection delete "bridge-slave-$ethernet_id" &>/dev/null || true
+
+  # Créer la connexion bridge
+  sudo nmcli connection add type bridge ifname br0 con-name br0
+  # Créer l'esclave associé au bridge
+  sudo nmcli connection add type ethernet con-name "bridge-slave-$ethernet_id" ifname "$ethernet_id" master br0
+
+  # Attendre que l'interface soit reconnue
+  for i in {1..5}; do
+    if ip link show br0 &>/dev/null; then
+      break
+    fi
+    info "Waiting for br0 to appear..."
+    sleep 1
+  done
+
+  # Activer les connexions
+  sudo nmcli connection up "bridge-slave-$ethernet_id" || {
+    error "Failed to bring up bridge slave"
+    exit 1
+  }
+
+  sudo nmcli connection up br0 || {
+    error "Failed to bring up bridge br0"
+    nmcli connection show
+    exit 1
+  }
+
+  bridge_id="br0"
+else
+  info "Bridge already exists: br0"
+  bridge_id="br0"
 fi
-if nmcli con show "bridge-slave-$ethernet_id" &>/dev/null; then
-  sudo nmcli con delete "bridge-slave-$ethernet_id" || true
-fi
-
-# Create bridge and attach Ethernet
-info "Creating bridge br0 and attaching $ethernet_id"
-sudo nmcli con add type bridge ifname br0 con-name br0
-sudo nmcli con add type ethernet ifname "$ethernet_id" master br0 con-name "bridge-slave-$ethernet_id"
-sudo nmcli con modify br0 ipv4.method auto
-
-# Wait for br0 to appear as a network device
-# Wait until the bridge connection is usable
-for i in {1..5}; do
-  state=$(nmcli -t -f NAME,DEVICE con show | grep '^br0:' | cut -d: -f2)
-  if [[ -n "$state" && "$state" != "--" ]]; then
-    ok "br0 is now available on device $state"
-    break
-  fi
-  warn "Waiting for br0 to be available in NetworkManager..."
-  sleep 1
-done
-
-# Check again
-state=$(nmcli -t -f NAME,DEVICE con show | grep '^br0:' | cut -d: -f2)
-if [[ "$state" == "--" || -z "$state" ]]; then
-  error "br0 is still not available after waiting"
-  nmcli con show
-  exit 1
-fi
-
-# Bring up bridge
-sudo nmcli con up br0 || {
-  error "Failed to bring up bridge br0"
-  nmcli con show
-  exit 1
-}
-bridge_id="br0"
 
 info  "Ethernet: $ethernet_id"
 info  "Wireless: $wireless_id"
