@@ -11,24 +11,30 @@ section "Configure network"
 step "Ensuring /etc/network/interfaces.d exists"
 sudo mkdir -p /etc/network/interfaces.d
 
-# Copy the main 'interfaces' file if it exists in the config directory
-if [[ -f config/interfaces ]]; then
-  step "Copying main interfaces config"
-  sudo cp config/interfaces /etc/network/interfaces
-fi
+CONFIG_FILE="config/interfaces.d/$wireless_id"
+TARGET_FILE="/etc/network/interfaces.d/$wireless_id"
 
-# Copy a specific interface config if it exists, fallback if missing
-interface_conf="config/interfaces.d/$wireless_id"
-if [[ -f "$interface_conf" ]]; then
-  step "Copying interface config for $wireless_id"
-  sudo cp "$interface_conf" /etc/network/interfaces.d/"$wireless_id"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  warn "Missing $CONFIG_FILE – generating fallback config"
+  cat <<EOF | sudo tee "$TARGET_FILE" > /dev/null
+auto $wireless_id
+iface $wireless_id inet static
+  address 10.0.0.1
+  netmask 255.255.255.0
+EOF
 else
-  warn "Missing config/interfaces.d/$wireless_id — generating fallback config"
-  echo -e "auto $wireless_id\niface $wireless_id inet static\n  address 192.168.10.1\n  netmask 255.255.255.0" | sudo tee /etc/network/interfaces.d/"$wireless_id" > /dev/null
+  step "Copying $CONFIG_FILE to $TARGET_FILE"
+  sudo cp "$CONFIG_FILE" "$TARGET_FILE"
 fi
 
-# Restart networking to apply changes
-step "Restarting networking service"
-sudo systemctl restart networking
+step "Restarting network interface"
+
+if systemctl list-units --type=service | grep -q '^networking.service'; then
+  sudo systemctl restart networking
+else
+  warn "networking.service not found – falling back to ifdown/ifup"
+  sudo ifdown "$wireless_id" || true
+  sudo ifup "$wireless_id" || true
+fi
 
 ok "Static IP configured on $wireless_id"
