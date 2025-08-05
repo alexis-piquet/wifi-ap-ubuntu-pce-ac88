@@ -39,5 +39,13 @@ Turn your Ubuntu machine (physical or virtualized in Proxmox) into a blazing fas
 ➡️ [WiFi Config & Allowlist](docs/wifi-config.md)  
 ➡️ [Start & Debug](docs/start.md)
 
+## 🙏 Acknowledgements
+This project would not exist without the help and shared knowledge of the community. Special thanks to:
+
+* [wiki.faked.org – Asus PCE-AC88 with hostapd](https://wiki.faked.org/Asus_PCE-AC88_with_hostapd) for their **exploration work and detailed documentation** of the Broadcom `dhd.ko` kernel module
+* [@picchietti](https://gist.github.com/picchietti/337029cf1946ff9e43b0f57aa75f6556) for his **clear and reproducible gist** on setting up `hostapd` with the ASUS PCE-AC88 card
+
+Their work was a major source of inspiration for building this more modular and automated repository.
+
 ## 🔖 Keywords
 `ubuntu`, `linux`, `wifi`, `access-point`, `hostapd`, `asus`, `pce-ac88`, `proxmox`, `router`, `networking`, `dhcp`, `dnsmasq`, `iptables`, `ipset`, `systemd`, `brcm`, `firewall`, `allowlist`
