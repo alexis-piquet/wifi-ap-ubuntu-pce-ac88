@@ -1,11 +1,10 @@
 [Unit]
 Description=Restore ipsets at boot
-Before=network-pre.target
-Wants=network-pre.target
+After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/sbin/ipset restore < /etc/ipset.conf
+ExecStart=/sbin/ipset restore -f /etc/ipset.conf
 RemainAfterExit=yes
 
 [Install]
