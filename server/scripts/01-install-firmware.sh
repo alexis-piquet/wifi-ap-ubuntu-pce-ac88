@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# shellcheck source=lib/log.sh
-. "$(dirname "$0")/lib/log.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/../lib/log.sh"
+
 
 section "INSTALL FIRMWARE"
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. "$(dirname "$0")/lib/log.sh"
-. .env
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/../lib/log.sh"
+. "$SCRIPT_DIR/../.env"
 
 section "CONFIGURE STATIC IP"
 
