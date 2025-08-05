@@ -6,26 +6,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 section "COMPILE HOSTAPD"
 
-step "Installing dependencies"
-sudo apt -y install build-essential crda libssl-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev pkg-config libnfnetlink-dev
+BUILD_DIR="$HOME/hostap_build"
+REPO_DIR="$BUILD_DIR/hostap"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
-cd ~
-step "Cloning hostap repository"
-git clone https://w1.fi/hostap.git || true
+step "Cloning hostap.git (if not already)"
+if [[ ! -d "$REPO_DIR" ]]; then
+  git clone --depth=1 https://w1.fi/hostap.git
+else
+  info "hostap repository already exists"
+fi
 
-cd hostap/hostapd
-git checkout hostap_2_3 || true
+cd "$REPO_DIR/hostapd"
 cp defconfig .config
 
-step "Enabling features in .config"
-sed -i 's/^#CONFIG_IEEE80211N=y/CONFIG_IEEE80211N=y/' .config
-sed -i 's/^#CONFIG_IEEE80211AC=y/CONFIG_IEEE80211AC=y/' .config
-sed -i 's/^#CONFIG_ACS=y/CONFIG_ACS=y/' .config
-sed -i 's/^#CONFIG_DRIVER_NL80211=y/CONFIG_DRIVER_NL80211=y/' .config
-sed -i 's/^#CONFIG_LIBNL32=y/CONFIG_LIBNL32=y/' .config
+step "Enabling nl80211 + ACS + 802.11n/ac"
+for flag in CONFIG_DRIVER_NL80211 CONFIG_LIBNL32 CONFIG_IEEE80211N CONFIG_IEEE80211AC CONFIG_ACS; do
+  if grep -q "^#*$flag" .config; then
+    sed -i "s/^#*$flag.*/$flag=y/" .config
+  elif ! grep -q "^$flag=y" .config; then
+    echo "$flag=y" >> .config
+  fi
+done
 
-step "Compiling..."
-make -j$(nproc)
+step "Building hostapd"
+make -j"$(nproc)"
+
+step "Installing hostapd"
 sudo make install
 
 ok "hostapd compiled and installed"
+summary "You can now run hostapd with your config. Try 'hostapd -v'."

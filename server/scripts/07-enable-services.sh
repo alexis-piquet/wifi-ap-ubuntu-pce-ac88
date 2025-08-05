@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 
-section "ENABLE HOSTAPD SERVICE"
+section "Enable service"
 
 step "Copying config files"
 sudo cp config/hostapd.conf /etc/hostapd/hostapd.conf

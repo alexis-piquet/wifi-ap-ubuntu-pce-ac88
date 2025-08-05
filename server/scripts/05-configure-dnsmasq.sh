@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 
-section "CONFIGURE DNSMASQ"
+section "Configure dnsmasq"
 
 step "Creating dnsmasq.d directory"
 sudo mkdir -p /etc/NetworkManager/dnsmasq.d

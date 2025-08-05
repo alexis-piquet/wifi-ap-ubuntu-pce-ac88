@@ -4,9 +4,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 
-step "Checking required system packages"
+step "Install dependencies"
 
 REQUIRED_PACKAGES=(
+  build-essential
+  crda
+  libssl-dev
+  libnl-3-dev
+  libnl-genl-3-dev
+  libnl-route-3-dev
+  libnfnetlink-dev
+  pkg-config
   network-manager
   iptables
   rfkill

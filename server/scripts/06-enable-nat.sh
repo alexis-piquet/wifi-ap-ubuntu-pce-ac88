@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 . "$SCRIPT_DIR/../.env"
 
-section "ENABLE NAT & FORWARDING"
+section "Enable nat"
 
 step "Enabling IPv4 forwarding"
 sudo sysctl -w net.ipv4.ip_forward=1

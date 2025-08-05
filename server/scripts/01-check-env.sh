@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 
-section "ENV CHECK"
+section "Check env"
 step "Detecting interfaces via nmcli"
 
 ethernet_id=$(nmcli dev status | awk '{print $1}' | grep -E '^en' | head -n1 || true)

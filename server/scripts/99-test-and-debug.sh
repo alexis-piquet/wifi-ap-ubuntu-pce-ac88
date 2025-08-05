@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/log.sh"
 . "$SCRIPT_DIR/../.env"
 
-section "DIAGNOSTIC QUICK TESTS"
+section Test and Debug"
 
 step "IP addresses"
 ip a
