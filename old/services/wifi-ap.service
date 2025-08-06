@@ -1,0 +1,12 @@
+[Unit]
+Description=Start Wi-Fi Access Point
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/start-wifi-ap.sh
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+

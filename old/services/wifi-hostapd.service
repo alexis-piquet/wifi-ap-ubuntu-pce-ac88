@@ -1,0 +1,12 @@
+[Unit]
+Description=Hostapd Wireless AP
+After=wifi-ap.service
+Requires=wifi-ap.service
+
+[Service]
+ExecStart=/usr/sbin/hostapd /etc/hostapd/hostapd.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

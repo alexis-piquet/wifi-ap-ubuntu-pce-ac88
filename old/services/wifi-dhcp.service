@@ -1,0 +1,15 @@
+[Unit]
+Description=DHCP Server for Wi-Fi AP
+After=wifi-ap.service
+Requires=wifi-ap.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dhcpd -4 -f -cf /etc/dhcp/dhcpd.conf wls16
+Restart=on-failure
+RestartSec=2
+PIDFile=/var/run/dhcpd.pid
+
+[Install]
+WantedBy=multi-user.target
+

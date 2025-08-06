@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Interfaces
+WAN_IFACE={{WAN_IFACE}}
+LAN_IFACE={{LAN_IFACE}}
+
+# Enable IP forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+sysctl -w net.ipv4.ip_forward=1
+
+# Flush existing rules
+iptables -F
+iptables -t nat -F
+
+# NAT rules
+iptables -t nat -A POSTROUTING -o "$WAN_IFACE" -j MASQUERADE
+iptables -A FORWARD -i "$WAN_IFACE" -o "$LAN_IFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i "$LAN_IFACE" -o "$WAN_IFACE" -j ACCEPT
+
+# Save rules
+sudo netfilter-persistent save
