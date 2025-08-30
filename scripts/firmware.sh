@@ -11,24 +11,50 @@ source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 init_firmware() {
   LOGGER info "Ensuring firmware directory exists"
 
-  SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"
-  BIN_FILE="$SYSTEM_FIRMWARE_PATH/brcmfmac4366c-pcie.bin"
-  LOCAL_BIN_PATH="$CURRENT_PATH/../bin/brcmfmac4366c-pcie.bin"
+  local SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"
+  local BIN="brcmfmac4366c-pcie.bin"
+  local CLM="brcmfmac4366c-pcie.clm_blob"
+  local LOCAL_BIN="$CURRENT_PATH/../bin/$BIN"
+  local LOCAL_CLM="$CURRENT_PATH/../bin/$CLM"
+  local URL_BASE="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm"
 
-  sudo mkdir -p "$SYSTEM_FIRMWARE_PATH"
+  sudo install -d -m 0755 "$SYSTEM_FIRMWARE_PATH"
 
-  if [[ -f "$LOCAL_BIN_PATH" ]]; then
-    LOGGER step "Copying local BIN firmware"
-    sudo cp "$LOCAL_BIN_PATH" "$BIN_FILE"
-    LOGGER ok "Local BIN copied"
-  elif [[ ! -f "$BIN_FILE" ]]; then
-    LOGGER step "Downloading firmware BIN"
-    sudo wget -q -O "$BIN_FILE" "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm/brcmfmac4366c-pcie.bin"
-    LOGGER ok "BIN firmware downloaded"
+  # --- BIN ---
+  if [[ -f "$LOCAL_BIN" ]]; then
+    LOGGER step "Installing local $BIN"
+    sudo install -m 0644 "$LOCAL_BIN" "$SYSTEM_FIRMWARE_PATH/$BIN"
+  else
+    LOGGER step "Downloading $BIN"
+    sudo sh -c "curl -fsSL '$URL_BASE/$BIN' > '$SYSTEM_FIRMWARE_PATH/$BIN.tmp' && mv '$SYSTEM_FIRMWARE_PATH/$BIN.tmp' '$SYSTEM_FIRMWARE_PATH/$BIN'"
+    LOGGER ok "$BIN downloaded"
   fi
 
-  LOGGER ok "Firmware ready in $SYSTEM_FIRMWARE_PATH (check with dmesg | grep brcmfmac)"
+  # --- CLM_BLOB ---
+  if [[ -f "$LOCAL_CLM" ]]; then
+    LOGGER step "Installing local $CLM"
+    sudo install -m 0644 "$LOCAL_CLM" "$SYSTEM_FIRMWARE_PATH/$CLM"
+  else
+    LOGGER step "Downloading $CLM"
+    sudo sh -c "curl -fsSL '$URL_BASE/$CLM' > '$SYSTEM_FIRMWARE_PATH/$CLM.tmp' && mv '$SYSTEM_FIRMWARE_PATH/$CLM.tmp' '$SYSTEM_FIRMWARE_PATH/$CLM'"
+    LOGGER ok "$CLM downloaded"
+  fi
 
-  sudo modprobe -r brcmfmac
+  # --- Reload driver ---
+  LOGGER step "Reloading brcmfmac"
+  if lsmod | grep -q '^brcmfmac'; then
+    sudo modprobe -r brcmfmac || true
+  fi
   sudo modprobe brcmfmac
+
+  # --- Sanity checks ---
+  if dmesg | tail -n 300 | grep -qi 'no clm_blob available'; then
+    LOGGER warn "Driver still reports missing clm_blob; verify $SYSTEM_FIRMWARE_PATH/$CLM"
+  fi
+
+  if ! iw list 2>/dev/null | grep -q '^\s*\*\s*AP'; then
+    LOGGER warn "Interface reports no AP support avec brcmfmac (BCM4366 souvent limité). Le mode AP peut échouer; dhd.ko est souvent requis."
+  fi
+
+  LOGGER ok "Firmware ready in $SYSTEM_FIRMWARE_PATH (check: dmesg | grep -i brcmfmac)"
 }
