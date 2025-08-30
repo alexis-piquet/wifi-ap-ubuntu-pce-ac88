@@ -64,7 +64,7 @@ _log() {
 debug() { _log DEBUG "$*"; }
 info()  { _log INFO  "$*"; }
 warn()  { _log WARN  "$*"; }
-error() { _log ERROR "$*"; }
+error() { _log ERROR "$*"; exit 1; }
 ok()    { _log OK    "$*"; }
 step()  { _log STEP  "$*"; }
 

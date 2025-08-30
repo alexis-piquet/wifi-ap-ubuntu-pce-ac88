@@ -1,10 +1,13 @@
 [Unit]
-Description=Advanced IEEE 802.11 AP
-After=network.target
+Description=Wi-Fi AP (hostapd)
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/hostapd /etc/hostapd/hostapd.conf
-Restart=always
+Type=simple
+ExecStart=/usr/local/sbin/hostapd -B /etc/hostapd/hostapd.conf
+Restart=on-failure
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
