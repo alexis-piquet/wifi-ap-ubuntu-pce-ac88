@@ -27,7 +27,7 @@ init_firmware() {
     LOGGER ok "BIN firmware downloaded"
   fi
 
-  LOGGER success "Firmware ready in $SYSTEM_FIRMWARE_PATH (check with dmesg | grep brcmfmac)"
+  LOGGER ok "Firmware ready in $SYSTEM_FIRMWARE_PATH (check with dmesg | grep brcmfmac)"
 
   sudo modprobe -r brcmfmac
   sudo modprobe brcmfmac
