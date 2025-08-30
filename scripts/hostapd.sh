@@ -8,7 +8,7 @@ source "$CURRENT_PATH/../lib/utils.sh"
 export LOG_NAMESPACE="[SCRIPTS][HOSTAPD]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
-init() {
+init_hostapd() {
   LOGGER info "Compiling and installing hostapd from source"
   BUILD_DIR="$HOME/hostap_build"
   REPO_DIR="$BUILD_DIR/hostap"

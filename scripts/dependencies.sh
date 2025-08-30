@@ -8,7 +8,7 @@ source "$CURRENT_PATH/../lib/utils.sh"
 export LOG_NAMESPACE="[SCRIPTS][DEPENDENCIES]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
-init() {
+init_dependencies() {
   LOGGER info "Trying to installrequired dependencies"
 
   REQUIRED_PACKAGES=(

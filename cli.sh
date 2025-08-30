@@ -28,16 +28,16 @@ unknown_command() {
 initialize() {
   LOGGER info "Starting installation..."
 
-  SCRIPTS_DEPENDENCIES init
-  SCRIPTS_ENV init
-  SCRIPTS_FIRMWARE init
-  SCRIPTS_HOSTAPD init
-  SCRIPTS_NETWORK init
-  SCRIPTS_DNSMASQ init
-  SCRIPTS_NAT init
-  SCRIPTS_SERVICES init
-  SCRIPTS_ALLOWLIST init
-  SCRIPTS_TEST_AND_DEBUG init
+  SCRIPTS_DEPENDENCIES init_dependencies
+  SCRIPTS_ENV init_env
+  SCRIPTS_FIRMWARE init_firmware
+  SCRIPTS_HOSTAPD init_hostapd
+  SCRIPTS_NETWORK init_network
+  SCRIPTS_DNSMASQ init_dnsmasq
+  SCRIPTS_NAT init_nat
+  SCRIPTS_SERVICES init_services
+  SCRIPTS_ALLOWLIST init_allowlist
+  SCRIPTS_TEST_AND_DEBUG init_test_and_debug
 
   LOGGER ok "Installation complete. You can now run: ./start.sh"
 }

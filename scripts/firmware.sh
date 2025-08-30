@@ -8,7 +8,7 @@ source "$CURRENT_PATH/../lib/utils.sh"
 export LOG_NAMESPACE="[SCRIPTS][FIRMWARE]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
-init() {
+init_firmware() {
   LOGGER info "Ensuring firmware directory exists"
 
   SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"

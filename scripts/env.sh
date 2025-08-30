@@ -8,7 +8,7 @@ source "$CURRENT_PATH/../lib/utils.sh"
 export LOG_NAMESPACE="[SCRIPTS][CHECK_ENV]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
-init() {
+init_env() {
   LOGGER info "Ensuring NetworkManager is running and interfaces are managed"
 
   sudo systemctl enable --now NetworkManager
