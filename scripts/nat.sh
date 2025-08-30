@@ -22,8 +22,5 @@ init_nat() {
   LOGGER step "Setting up iptables NAT rule"
   sudo iptables -t nat -A POSTROUTING -o $ethernet_id -j MASQUERADE
 
-  LOGGER step "Installing iptables-persistent"
-  sudo apt install -y iptables-persistent
-
   LOGGER ok "NAT and forwarding enabled and persistent"
 }

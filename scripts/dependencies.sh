@@ -22,6 +22,7 @@ init_dependencies() {
     ipset
     dnsmasq
     iptables
+    iptables-persistent
     rfkill
     curl
     wget
