@@ -14,8 +14,7 @@ init_hostapd() {
 
   BUILD_DIR="$HOME/hostap_build"
   REPO_DIR="$BUILD_DIR/hostap"
-  REPO_URL="${HOSTAPD_REPO_URL:-https://w1.fi/hostap.git}"  # <- par défaut officiel
-  BRANCH="${HOSTAPD_BRANCH:-master}"
+  REPO_URL="${HOSTAPD_REPO_URL:-https://w1.fi/hostap.git}"
 
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"
@@ -26,12 +25,25 @@ init_hostapd() {
     return 1
   fi
 
-  LOGGER step "Cloning hostap.git (if not already)"
+  # 🔎 détecte la branche par défaut du remote (HEAD)
+  DEFAULT_BRANCH="$(git ls-remote --symref "$REPO_URL" HEAD \
+    | awk '/^ref:/ { sub("refs/heads/","",$2); print $2 }')"
+  BRANCH="${HOSTAPD_BRANCH:-${DEFAULT_BRANCH:-main}}"
+
+  LOGGER step "Cloning hostap.git (branch: $BRANCH)"
   if [[ ! -d "$REPO_DIR/.git" ]]; then
-    git clone --depth=1 --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"
+    if ! git clone --depth=1 --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"; then
+      LOGGER warn "Branch '$BRANCH' not found; cloning default branch instead"
+      git clone --depth=1 "$REPO_URL" "$REPO_DIR"
+    fi
   else
     LOGGER info "hostap repo exists, pulling latest"
-    (cd "$REPO_DIR" && git fetch --depth=1 origin "$BRANCH" && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH")
+    (
+      cd "$REPO_DIR"
+      git fetch --depth=1 origin "$BRANCH" || true
+      git checkout "$BRANCH" 2>/dev/null || true
+      git reset --hard "origin/$BRANCH" 2>/dev/null || git reset --hard origin/HEAD
+    )
   fi
 
   cd "$REPO_DIR/hostapd"
