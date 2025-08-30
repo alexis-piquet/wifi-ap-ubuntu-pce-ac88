@@ -81,7 +81,7 @@ EOF
   sudo sed -i '/^\s*bind-interfaces\s*$/d' /etc/dnsmasq.conf 2>/dev/null || true
   # 3) snippets
   sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" -print0 \
-    | xargs -0 sudo sed -i '/^\s*bind-interfaces\s*$/d'
+    | xargs -0 -r sudo sed -i '/^\s*bind-interfaces\s*$/d'
 
   # Info : stub :53 tenu par resolved ? (pas bloquant car on bind sur l'AP)
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
