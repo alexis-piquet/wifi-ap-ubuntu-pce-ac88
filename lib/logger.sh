@@ -54,7 +54,7 @@ _log() {
 
   if (( $(_log_level_value "$shown_level") >= $(_log_level_value "$LOG_LEVEL") )); then
     if [[ -n "$LOG_NAMESPACE" ]]; then
-      printf "%b[%s] %s %s%s%b\n" "$color" "$ts" ➤ "$LOG_NAMESPACE" "$prefix" "$msg" "$NC"
+      printf "%b[%s] %s %s%s%b\n" "$color" "$ts" "$LOG_NAMESPACE" "$prefix" "$msg" "$NC"
     else
       printf "%b[%s] %s %s%b\n" "$color" "$ts" "$prefix" "$msg" "$NC"
     fi
