@@ -19,12 +19,6 @@ source_as "./scripts/services.sh"       "SCRIPTS_SERVICES"
 source_as "./scripts/allowlist.sh"      "SCRIPTS_ALLOWLIST"
 source_as "./scripts/test_and_debug.sh" "SCRIPTS_TEST_AND_DEBUG"
 
-unknown_command() {
-  LOGGER error "Unknown command '$COMMAND'"
-  usage
-  exit 1
-}
-
 initialize() {
   LOGGER info "Starting installation..."
 
@@ -42,24 +36,4 @@ initialize() {
   LOGGER ok "Installation complete. You can now run: ./start.sh"
 }
 
-while getopts "hc:" opt; do
-  case $opt in
-    c) CONFIG_FILE="$OPTARG" ;;
-    *) LOGGER error "Invalid option: -$OPTARG"; usage ;;
-  esac
-done
-shift $((OPTIND -1))
-
-COMMAND=$1 || true
-shift || true
-
-if [[ -z "${COMMAND:-}" ]]; then
-  LOGGER error "No command provided."
-  usage
-fi
-
-case "$COMMAND" in
-  init         ) initialize "$@" ;;
-  start        ) LOGGER step "Starting..."; start "$@" ;;
-  *            ) unknown_command ;;
-esac
+initialize

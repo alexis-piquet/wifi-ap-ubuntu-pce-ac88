@@ -10,16 +10,28 @@ source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init_hostapd() {
   LOGGER info "Compiling and installing hostapd from source"
+  export GIT_TERMINAL_PROMPT=0
+
   BUILD_DIR="$HOME/hostap_build"
   REPO_DIR="$BUILD_DIR/hostap"
+  REPO_URL="${HOSTAPD_REPO_URL:-https://w1.fi/hostap.git}"  # <- par défaut officiel
+  BRANCH="${HOSTAPD_BRANCH:-master}"
+
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"
 
+  LOGGER step "Checking hostap repo reachability"
+  if ! git ls-remote --exit-code "$REPO_URL" &>/dev/null; then
+    LOGGER error "Cannot reach repo: $REPO_URL. Set HOSTAPD_REPO_URL."
+    return 1
+  fi
+
   LOGGER step "Cloning hostap.git (if not already)"
-  if [[ ! -d "$REPO_DIR" ]]; then
-    git clone --depth=1 https://github.com/pritambaral/hostapd.git "$REPO_DIR"
+  if [[ ! -d "$REPO_DIR/.git" ]]; then
+    git clone --depth=1 --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"
   else
-    LOGGER info "hostap repository already exists"
+    LOGGER info "hostap repo exists, pulling latest"
+    (cd "$REPO_DIR" && git fetch --depth=1 origin "$BRANCH" && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH")
   fi
 
   cd "$REPO_DIR/hostapd"
@@ -41,5 +53,5 @@ init_hostapd() {
   sudo make install
 
   LOGGER ok "hostapd compiled and installed"
-  LOGGER info "You can now run hostapd with your config. Try 'hostapd -v'."
+  LOGGER info "Version: $(hostapd -v 2>/dev/null || echo 'unknown')"
 }
