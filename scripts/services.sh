@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][SERVICES]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "Setting up NAT and IP forwarding"
+  LOGGER info "Setting up NAT and IP forwarding"
   if [[ -f "$CURRENT_PATH/../.env" ]]; then
     source "$CURRENT_PATH/../.env"
   else

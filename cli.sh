@@ -31,8 +31,6 @@ unknown_command() {
 }
 
 init() {
-  LOGGER section "Init wifi_ap"
-
   SCRIPTS=(
     "SCRIPTS_DEPENDENCIES"
     "SCRIPTS_ENV"
@@ -73,7 +71,7 @@ fi
 
 case "$COMMAND" in
   help         ) usage ;;
-  init         ) init ;;
+  init         ) init "$@" ;;
   start        ) LOGGER step "Starting..."; start "$@" ;;
   *            ) unknown_command ;;
 esac

@@ -68,11 +68,6 @@ error() { _log ERROR "$*"; }
 ok()    { _log OK    "$*"; }
 step()  { _log STEP  "$*"; }
 
-section() {
-  local title="$*"
-  printf "%b\n" "${BLUE}#--------------------[ ${title} ]--------------------#${NC}"
-}
-
 _log_on_error() {
   local ec=$?
   local src="${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"

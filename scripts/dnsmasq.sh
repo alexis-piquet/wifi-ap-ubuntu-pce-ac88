@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][DNSMASQ]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "DNSMASQ: Setup DNS-MASQ for DHCP and DNS with ipset support"
+  LOGGER info "DNSMASQ: Setup DNS-MASQ for DHCP and DNS with ipset support"
 
   WIFI_INTERFACE="$(ip link | awk -F: '/^[0-9]+: wl/ { print $2; exit }' | xargs)"
   if [[ -z "$WIFI_INTERFACE" ]]; then

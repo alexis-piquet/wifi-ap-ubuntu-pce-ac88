@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][ALLOWLIST]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "ALLOWLIST: Setup DNS-based filtering with ipset"
+  LOGGER info "ALLOWLIST: Setup DNS-based filtering with ipset"
 
   if [[ -f "$CURRENT_PATH/../.env" ]]; then
     source "$CURRENT_PATH/../.env"

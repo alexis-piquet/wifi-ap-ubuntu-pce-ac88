@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][FIRMWARE]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "Ensuring firmware directory exists"
+  LOGGER info "Ensuring firmware directory exists"
 
   SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"
   BIN_FILE="$SYSTEM_FIRMWARE_PATH/brcmfmac4366c-pcie.bin"

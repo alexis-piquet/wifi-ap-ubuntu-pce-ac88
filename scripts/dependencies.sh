@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][DEPENDENCIES]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "Trying to installrequired dependencies"
+  LOGGER info "Trying to installrequired dependencies"
 
   REQUIRED_PACKAGES=(
     build-essential

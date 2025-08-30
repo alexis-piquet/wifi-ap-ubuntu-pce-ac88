@@ -9,7 +9,7 @@ export LOG_NAMESPACE="[SCRIPTS][TEST_AND_DEBUG]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
-  LOGGER section "Test and Debug"
+  LOGGER info "Test and Debug"
 
   if [[ -f "$CURRENT_PATH/../.env" ]]; then
     source "$CURRENT_PATH/../.env"
