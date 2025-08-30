@@ -45,7 +45,7 @@ _log() {
   case "$level" in
     DEBUG) color="$DIM";    prefix="⟪DBG⟫" ;;
     INFO ) color="$CYAN";   prefix="ℹ"     ;;
-    WARN ) color="$YELLOW"; prefix="⚠"     ;;
+    WARN ) color="$ORANGE"; prefix="⚠"     ;;
     ERROR) color="$RED";    prefix="✖"     ;;
     OK   ) color="$GREEN";  prefix="✔" ; shown_level="INFO" ;;
     STEP ) color="$BLUE";   prefix="➤" ; shown_level="INFO" ;;
