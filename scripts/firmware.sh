@@ -14,7 +14,7 @@ init_firmware() {
   local SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"
   local BIN="brcmfmac4366c-pcie.bin"
   local CLM="brcmfmac4366c-pcie.clm_blob"
-  local LOCAL_CLM="$CURRENT_PATH/../bin/$CLM"
+  local LOCAL_BIN="$CURRENT_PATH/../bin/$BIN"
   local URL_BASE="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm"
 
   sudo install -d -m 0755 "$SYSTEM_FIRMWARE_PATH"
