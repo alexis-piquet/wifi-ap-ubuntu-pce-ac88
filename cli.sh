@@ -7,7 +7,7 @@ cd "$CURRENT_PATH"
 source    "./lib/utils.sh"
 
 export LOG_NAMESPACE="[CLI]"
-source_as "./lib/logger.sh"                "LOGGER"
+source_as "./lib/logger.sh"             "LOGGER"
 source_as "./scripts/dependencies.sh"   "SCRIPTS_DEPENDENCIES"
 source_as "./scripts/env.sh"            "SCRIPTS_ENV"
 source_as "./scripts/firmware.sh"       "SCRIPTS_FIRMWARE"
@@ -18,11 +18,6 @@ source_as "./scripts/nat.sh"            "SCRIPTS_NAT"
 source_as "./scripts/services.sh"       "SCRIPTS_SERVICES"
 source_as "./scripts/allowlist.sh"      "SCRIPTS_ALLOWLIST"
 source_as "./scripts/test_and_debug.sh" "SCRIPTS_TEST_AND_DEBUG"
-
-usage() {
-  LOGGER info "Displayed usage"
-  exit 0
-}
 
 unknown_command() {
   LOGGER error "Unknown command '$COMMAND'"
@@ -49,7 +44,6 @@ init() {
 
 while getopts "hc:" opt; do
   case $opt in
-    h) usage ;;
     c) CONFIG_FILE="$OPTARG" ;;
     *) LOGGER error "Invalid option: -$OPTARG"; usage ;;
   esac
@@ -65,7 +59,6 @@ if [[ -z "${COMMAND:-}" ]]; then
 fi
 
 case "$COMMAND" in
-  help         ) usage ;;
   init         ) init "$@" ;;
   start        ) LOGGER step "Starting..."; start "$@" ;;
   *            ) unknown_command ;;
