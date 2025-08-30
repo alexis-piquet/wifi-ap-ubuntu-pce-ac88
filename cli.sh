@@ -25,7 +25,7 @@ unknown_command() {
   exit 1
 }
 
-init() {
+initialize() {
   LOGGER info "Starting installation..."
 
   SCRIPTS_DEPENDENCIES init
@@ -59,7 +59,7 @@ if [[ -z "${COMMAND:-}" ]]; then
 fi
 
 case "$COMMAND" in
-  init         ) init "$@" ;;
+  init         ) initialize "$@" ;;
   start        ) LOGGER step "Starting..."; start "$@" ;;
   *            ) unknown_command ;;
 esac
