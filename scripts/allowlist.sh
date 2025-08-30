@@ -9,6 +9,7 @@ init_allowlist() {
   LOGGER info "ALLOWLIST: Setup DNS-based filtering with ipset"
 
   if [[ -f "$CURRENT_PATH/../.env" ]]; then
+    # shellcheck source=/dev/null
     source "$CURRENT_PATH/../.env"
   else
     LOGGER error "Missing .env file – cannot proceed"
@@ -47,6 +48,7 @@ init_allowlist() {
     echo "ipset=/$domain/whitelist" | sudo tee -a "$DNSMASQ_CONF" > /dev/null
   done < "$WHITELIST_FILE"
 
+  # IP de l'AP (fallback 10.0.0.1)
   AP_IP="$(ip -4 addr show dev "$wireless_id" | awk '/inet /{print $2}' | cut -d/ -f1 || true)"
   [[ -z "$AP_IP" ]] && AP_IP="10.0.0.1"
 
@@ -68,6 +70,7 @@ dhcp-option=option:router,$AP_IP
 dhcp-option=option:dns-server,$AP_IP
 EOF
 
+  # 🔧 Purge globale des options conflictuelles (on garde bind-interfaces seulement)
   LOGGER step "Sanitizing dnsmasq bind options (removing bind-dynamic and stray bind-interfaces)"
   if [[ -f /etc/default/dnsmasq ]]; then
     sudo sed -i -E 's/--bind-(interfaces|dynamic)//g' /etc/default/dnsmasq
@@ -75,8 +78,10 @@ EOF
   sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d' /etc/dnsmasq.conf 2>/dev/null || true
   sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" -print0 \
     | xargs -0 -r sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d'
+  # Réécrit notre fichier avec bind-interfaces (au cas où la purge l'aurait touché)
   sudo sed -i -E 's/^\s*bind-(interfaces|dynamic)\s*$/bind-interfaces/' "$WIFI_AP_CONF"
 
+  # Info : stub :53 tenu par resolved ? (ok, on n'écoute que sur l'AP)
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
     LOGGER warn "Port 53 is used by systemd-resolved — dnsmasq will only listen on $wireless_id:$AP_IP."
   fi

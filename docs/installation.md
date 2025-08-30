@@ -7,7 +7,6 @@ chmod +x -R .
 ```
 
 ### 2️⃣ Global Installation
-⚠️ **Warning:** The CLI can only be installed within the `integration` directory.
 To use the CLI globally, move the `.` directory to a directory in your `PATH`, such as `/usr/local/bin`:
 ```sh
 sudo cp -r . /usr/local/bin/wifi_ap
