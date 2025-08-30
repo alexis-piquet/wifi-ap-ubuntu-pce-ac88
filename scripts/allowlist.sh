@@ -86,7 +86,7 @@ EOF
   # Info : stub :53 tenu par resolved ? (pas bloquant car on bind sur l'AP)
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
     LOGGER warn "Port 53 is used by systemd-resolved — dnsmasq will only listen on $wireless_id:$AP_IP."
-  end
+  fi
 
   LOGGER step "Restarting dnsmasq"
   if ! sudo systemctl restart dnsmasq; then
