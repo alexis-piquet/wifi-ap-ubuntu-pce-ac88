@@ -73,7 +73,7 @@ fi
 
 case "$COMMAND" in
   help         ) usage ;;
-  init         ) init "$@" ;;
+  init         ) init ;;
   start        ) LOGGER step "Starting..."; start "$@" ;;
   *            ) unknown_command ;;
 esac

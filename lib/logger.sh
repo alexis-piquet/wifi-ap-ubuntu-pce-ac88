@@ -70,7 +70,7 @@ step()  { _log STEP  "$*"; }
 
 section() {
   local title="$*"
-  printf "%b\n" "${BOLD}${BLUE}#--------------------[ ${title} ]--------------------#${NC}"
+  printf "%b\n" "${BLUE}#--------------------[ ${title} ]--------------------#${NC}"
 }
 
 _log_on_error() {
