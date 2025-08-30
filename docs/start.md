@@ -2,7 +2,7 @@
 After installation:
 
 ```sh
-cd server
+cd src
 ./start.sh
 ```
 

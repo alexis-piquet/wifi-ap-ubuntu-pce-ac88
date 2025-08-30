@@ -1,21 +1,28 @@
-## 📦 Full Setup (Automated)
-Run this to install everything in one go:
+## 📥 CLI Installation
 
+### 1️⃣ Make the CLI Executable
+Run the following command to make the script executable:
 ```sh
-chmod +x server/**/*.sh
-./install.sh
+chmod +x -R .
 ```
 
-## Optionally, move to a system path:
+### 2️⃣ Global Installation
+⚠️ **Warning:** The CLI can only be installed within the `integration` directory.
+To use the CLI globally, move the `.` directory to a directory in your `PATH`, such as `/usr/local/bin`:
 ```sh
-sudo cp -r server /usr/local/bin/wifi
+sudo cp -r . /usr/local/bin/wifi_ap
 ```
 
-## Shell convenience:
-```sh
-echo "export WIFI=\"$(pwd)\"" >> ~/.bashrc
-echo "alias wifi='/usr/local/bin/wifi/start.sh'" >> ~/.bashrc
-source ~/.bashrc
-```
-
-Logs are stored daily in `server/logs/`.
+Alternatively, create an alias for the script:
+- **For Bash:**
+  Add the following alias to your `~/.bashrc` file:
+  ```sh
+  echo "alias webciel='/usr/local/bin/wifi_ap/cli.sh'" >> ~/.bashrc
+  source ~/.bashrc
+  ```
+- **For Zsh:**
+  Add the following alias to your `~/.zshrc` file:
+  ```sh
+  echo "alias webciel='/usr/local/bin/wifi_ap/cli.sh'" >> ~/.zshrc
+  source ~/.zshrc
+  ```
