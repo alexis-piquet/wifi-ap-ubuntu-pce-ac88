@@ -21,6 +21,8 @@ init_dependencies() {
     libnfnetlink-dev
     pkg-config
     network-manager
+    ipset
+    dnsmasq
     iptables
     rfkill
     curl
