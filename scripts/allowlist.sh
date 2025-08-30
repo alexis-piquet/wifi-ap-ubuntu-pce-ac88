@@ -51,6 +51,7 @@ init_allowlist() {
   # IP de l'AP (fallback 10.0.0.1)
   AP_IP="$(ip -4 addr show dev "$wireless_id" | awk '/inet /{print $2}' | cut -d/ -f1 || true)"
   [[ -z "$AP_IP" ]] && AP_IP="10.0.0.1"
+  AP_NET="${AP_IP%.*}"   # ex: 10.0.0
 
   LOGGER step "Writing dnsmasq interface binding (listen only on $wireless_id:$AP_IP)"
   sudo tee "$WIFI_AP_CONF" > /dev/null <<EOF
@@ -64,8 +65,8 @@ no-resolv
 server=1.1.1.1
 server=1.0.0.1
 
-# DHCP for AP clients (adjust/remove if you already have another DHCP)
-dhcp-range=$AP_IP,static,255.255.255.0,12h
+# DHCP for AP clients (adjust/remove if you already run another DHCP)
+dhcp-range=$AP_NET.10,$AP_NET.200,255.255.255.0,12h
 dhcp-option=option:router,$AP_IP
 dhcp-option=option:dns-server,$AP_IP
 EOF
@@ -73,21 +74,23 @@ EOF
   # 🔧 Purge globale des options conflictuelles (on garde bind-interfaces seulement)
   LOGGER step "Sanitizing dnsmasq bind options (removing bind-dynamic and stray bind-interfaces)"
   if [[ -f /etc/default/dnsmasq ]]; then
+    # vider les options CLI et retirer tout --bind-*
+    sudo sed -i -E 's/(DNSMASQ_OPTS|OPTIONS)=.*$/DNSMASQ_OPTS=""/' /etc/default/dnsmasq 2>/dev/null || true
     sudo sed -i -E 's/--bind-(interfaces|dynamic)//g' /etc/default/dnsmasq
   fi
   sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d' /etc/dnsmasq.conf 2>/dev/null || true
-  sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" -print0 \
+  sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" ! -name "wifi-ap.conf" -print0 \
     | xargs -0 -r sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d'
-  # Réécrit notre fichier avec bind-interfaces (au cas où la purge l'aurait touché)
+  # s’assurer que NOTRE fichier contient bien bind-interfaces
   sudo sed -i -E 's/^\s*bind-(interfaces|dynamic)\s*$/bind-interfaces/' "$WIFI_AP_CONF"
 
-  # Info : stub :53 tenu par resolved ? (ok, on n'écoute que sur l'AP)
+  # Info : resolved tient :53 ? (ok, on n’écoute que sur l’AP)
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
-    LOGGER warn "Port 53 is used by systemd-resolved — dnsmasq will only listen on $wireless_id:$AP_IP."
+    LOGGER warn "Port 53 is used by systemd-resolved — dnsmasq listens only on $wireless_id:$AP_IP."
   fi
 
-  LOGGER step "Config test"
-  sudo dnsmasq --test || { LOGGER error "dnsmasq --test failed"; exit 1; }
+  LOGGER step "Config test (includes conf-dir)"
+  sudo dnsmasq --test --conf-file=/etc/dnsmasq.conf --conf-dir=/etc/dnsmasq.d || { LOGGER error "dnsmasq --test failed"; exit 1; }
 
   LOGGER step "Restarting dnsmasq"
   if ! sudo systemctl restart dnsmasq; then
