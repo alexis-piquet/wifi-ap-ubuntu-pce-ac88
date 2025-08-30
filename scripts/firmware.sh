@@ -14,7 +14,6 @@ init_firmware() {
   local SYSTEM_FIRMWARE_PATH="/lib/firmware/brcm"
   local BIN="brcmfmac4366c-pcie.bin"
   local CLM="brcmfmac4366c-pcie.clm_blob"
-  local LOCAL_BIN="$CURRENT_PATH/../bin/$BIN"
   local LOCAL_CLM="$CURRENT_PATH/../bin/$CLM"
   local URL_BASE="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/brcm"
 
@@ -28,16 +27,6 @@ init_firmware() {
     LOGGER step "Downloading $BIN"
     sudo sh -c "curl -fsSL '$URL_BASE/$BIN' > '$SYSTEM_FIRMWARE_PATH/$BIN.tmp' && mv '$SYSTEM_FIRMWARE_PATH/$BIN.tmp' '$SYSTEM_FIRMWARE_PATH/$BIN'"
     LOGGER ok "$BIN downloaded"
-  fi
-
-  # --- CLM_BLOB ---
-  if [[ -f "$LOCAL_CLM" ]]; then
-    LOGGER step "Installing local $CLM"
-    sudo install -m 0644 "$LOCAL_CLM" "$SYSTEM_FIRMWARE_PATH/$CLM"
-  else
-    LOGGER step "Downloading $CLM"
-    sudo sh -c "curl -fsSL '$URL_BASE/$CLM' > '$SYSTEM_FIRMWARE_PATH/$CLM.tmp' && mv '$SYSTEM_FIRMWARE_PATH/$CLM.tmp' '$SYSTEM_FIRMWARE_PATH/$CLM'"
-    LOGGER ok "$CLM downloaded"
   fi
 
   # --- Reload driver ---
