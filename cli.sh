@@ -31,23 +31,16 @@ unknown_command() {
 }
 
 init() {
-  SCRIPTS=(
-    "SCRIPTS_DEPENDENCIES"
-    "SCRIPTS_ENV"
-    "SCRIPTS_FIRMWARE"
-    "SCRIPTS_HOSTAPD"
-    "SCRIPTS_NETWORK"
-    "SCRIPTS_DNSMASQ"
-    "SCRIPTS_NAT"
-    "SCRIPTS_SERVICES"
-    "SCRIPTS_ALLOWLIST"
-    "SCRIPTS_TEST_AND_DEBUG"
-  )
-
-  for script in "${SCRIPTS[@]}"; do
-    LOGGER step "Running $script"
-    "$script" init
-  done
+    SCRIPTS_DEPENDENCIES init
+    SCRIPTS_ENV init
+    SCRIPTS_FIRMWARE init
+    SCRIPTS_HOSTAPD init
+    SCRIPTS_NETWORK init
+    SCRIPTS_DNSMASQ init
+    SCRIPTS_NAT init
+    SCRIPTS_SERVICES init
+    SCRIPTS_ALLOWLIST init
+    SCRIPTS_TEST_AND_DEBUG init
 
   LOGGER ok "Installation complete. You can now run: ./start.sh"
 }
