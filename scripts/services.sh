@@ -4,8 +4,6 @@ set -euo pipefail
 CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$CURRENT_PATH/../lib/utils.sh"
-
-export LOG_NAMESPACE="[SCRIPTS][SERVICES]"
 source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init_services() {
