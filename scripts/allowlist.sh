@@ -48,43 +48,44 @@ init_allowlist() {
     echo "ipset=/$domain/whitelist" | sudo tee -a "$DNSMASQ_CONF" > /dev/null
   done < "$WHITELIST_FILE"
 
-  # IP de l'AP (fallback 10.0.0.1)
+  # ── S'assurer que l'IP existe sur l'interface ────────────────────────────────
   AP_IP="$(ip -4 addr show dev "$wireless_id" | awk '/inet /{print $2}' | cut -d/ -f1 || true)"
-  [[ -z "$AP_IP" ]] && AP_IP="10.0.0.1"
-  AP_NET="${AP_IP%.*}"   # ex: 10.0.0
+  if [[ -z "$AP_IP" ]]; then
+    AP_IP="10.0.0.1"
+    LOGGER step "Assigning $AP_IP/24 to $wireless_id (was missing)"
+    sudo ip link set "$wireless_id" up || true
+    sudo ip addr replace "$AP_IP/24" dev "$wireless_id"
+  fi
+  AP_NET="${AP_IP%.*}"
 
   LOGGER step "Writing dnsmasq interface binding (listen only on $wireless_id:$AP_IP)"
   sudo tee "$WIFI_AP_CONF" > /dev/null <<EOF
-# Bind only to the AP interface to avoid port 53 conflicts with systemd-resolved
+# Bind only to the AP interface
 interface=$wireless_id
 bind-interfaces
 listen-address=$AP_IP
 
-# Don't use system resolv.conf; forward upstream explicitly
+# Upstream DNS
 no-resolv
 server=1.1.1.1
 server=1.0.0.1
 
-# DHCP for AP clients (adjust/remove if you already run another DHCP)
+# DHCP for AP clients (adjust/remove if you run another DHCP)
 dhcp-range=$AP_NET.10,$AP_NET.200,255.255.255.0,12h
 dhcp-option=option:router,$AP_IP
 dhcp-option=option:dns-server,$AP_IP
 EOF
 
-  # 🔧 Purge globale des options conflictuelles (on garde bind-interfaces seulement)
-  LOGGER step "Sanitizing dnsmasq bind options (removing bind-dynamic and stray bind-interfaces)"
+  LOGGER step "Sanitizing dnsmasq bind options (removing bind-dynamic and CLI options)"
   if [[ -f /etc/default/dnsmasq ]]; then
-    # vider les options CLI et retirer tout --bind-*
     sudo sed -i -E 's/(DNSMASQ_OPTS|OPTIONS)=.*$/DNSMASQ_OPTS=""/' /etc/default/dnsmasq 2>/dev/null || true
     sudo sed -i -E 's/--bind-(interfaces|dynamic)//g' /etc/default/dnsmasq
   fi
   sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d' /etc/dnsmasq.conf 2>/dev/null || true
   sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" ! -name "wifi-ap.conf" -print0 \
     | xargs -0 -r sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d'
-  # s’assurer que NOTRE fichier contient bien bind-interfaces
   sudo sed -i -E 's/^\s*bind-(interfaces|dynamic)\s*$/bind-interfaces/' "$WIFI_AP_CONF"
 
-  # Info : resolved tient :53 ? (ok, on n’écoute que sur l’AP)
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
     LOGGER warn "Port 53 is used by systemd-resolved — dnsmasq listens only on $wireless_id:$AP_IP."
   fi
