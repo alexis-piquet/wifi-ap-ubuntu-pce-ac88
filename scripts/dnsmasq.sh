@@ -6,7 +6,7 @@ CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$CURRENT_PATH/../lib/utils.sh"
 
 export LOG_NAMESPACE="[SCRIPTS][DNSMASQ]"
-source_as "$CURRENT_PATH/../lib/log.sh" "LOGGER"
+source_as "$CURRENT_PATH/../lib/logger.sh" "LOGGER"
 
 init() {
   LOGGER section "DNSMASQ: Setup DNS-MASQ for DHCP and DNS with ipset support"

@@ -7,7 +7,7 @@ cd "$CURRENT_PATH"
 source    "./lib/utils.sh"
 
 export LOG_NAMESPACE="[CLI]"
-source_as "./lib/log.sh"                "LOGGER"
+source_as "./lib/logger.sh"                "LOGGER"
 source_as "./scripts/dependencies.sh"   "SCRIPTS_DEPENDENCIES"
 source_as "./scripts/env.sh"            "SCRIPTS_ENV"
 source_as "./scripts/firmware.sh"       "SCRIPTS_FIRMWARE"

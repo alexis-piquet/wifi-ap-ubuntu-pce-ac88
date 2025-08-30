@@ -1,4 +1,4 @@
-## 🗒️ Logging System (`lib/log.sh`)
+## 🗒️ Logging System (`lib/logger.sh`)
 This file provides a consistent logging interface across all scripts.
 
 ### ✅ Features
@@ -9,7 +9,7 @@ This file provides a consistent logging interface across all scripts.
 
 ### 🔧 Usage in scripts
 ```bash
-. lib/log.sh
+. lib/logger.sh
 step "Starting..."
 info "Doing something important"
 warn "This might be risky"
