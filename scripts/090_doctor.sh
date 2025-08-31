@@ -32,6 +32,8 @@ ALLOWLIST_DIR="$ROOT_DIR/config/allowlist"
 ALLOW_ALL_IPS_FILE="$ALLOWLIST_DIR/allow_all_ips.txt"
 WHITELIST_FILE="$ALLOWLIST_DIR/whitelist.txt"
 
+_do_if_fix() { [[ "$FIX" == true ]] || return 0; "$@"; }
+
 _cmd_ok() { command -v "$1" >/dev/null 2>&1; }
 
 _load_env() {
@@ -64,7 +66,10 @@ _check_rfkill() {
     rfkill list || true
     if rfkill list | grep -qi "Soft blocked: yes"; then
       LOGGER warn "Some radios are soft-blocked."
-      $FIX && { LOGGER info "Unblocking Wi-Fi (rfkill)"; sudo rfkill unblock wifi; }
+      if [[ "$FIX" == true ]]; then
+        LOGGER info "Unblocking Wi-Fi (rfkill)"
+        sudo rfkill unblock wifi
+      fi
     fi
   fi
 }
@@ -102,7 +107,11 @@ _check_iw_cap() {
     LOGGER info "Regdom:"
     iw reg get || true
     # Apply regulatory domain if requested
-    $FIX && { LOGGER info "Setting regdom to $WIRELESS_COUNTRY"; sudo iw reg set "$WIRELESS_COUNTRY" || true; }
+    
+    if [[ "$FIX" == true ]]; then
+      LOGGER info "Setting regdom to $WIRELESS_COUNTRY"
+      sudo iw reg set "$WIRELESS_COUNTRY" || true
+    fi
   else
     LOGGER warn "iw not installed"
   fi
@@ -133,11 +142,18 @@ _release_nm_and_wpa() {
   if systemctl list-unit-files | grep -q 'wpa_supplicant'; then
     if systemctl is-active --quiet "wpa_supplicant@$WIRELESS_IF.service"; then
       LOGGER warn "wpa_supplicant@$WIRELESS_IF is active"
-      $FIX && { sudo systemctl stop "wpa_supplicant@$WIRELESS_IF.service"; sudo systemctl mask "wpa_supplicant@$WIRELESS_IF.service" || true; }
+      
+      if [[ "$FIX" == true ]]; then
+        sudo systemctl stop "wpa_supplicant@$WIRELESS_IF.service"
+        sudo systemctl mask "wpa_supplicant@$WIRELESS_IF.service" || true
+      fi
     fi
     if systemctl is-active --quiet wpa_supplicant; then
       LOGGER warn "wpa_supplicant is active (global)"
-      $FIX && { sudo systemctl stop wpa_supplicant || true; }
+      
+      if [[ "$FIX" == true ]]; then
+        sudo systemctl stop wpa_supplicant || true
+      fi
     fi
   fi
 }
@@ -198,7 +214,10 @@ _check_dnsmasq() {
 
   if ! systemctl is-active --quiet dnsmasq; then
     LOGGER warn "dnsmasq inactive"
-    $FIX && { sudo systemctl restart dnsmasq; }
+    
+    if [[ "$FIX" == true ]]; then
+      sudo systemctl restart dnsmasq
+    fi
   else
     LOGGER ok "dnsmasq running"
   fi
@@ -216,7 +235,9 @@ _check_nat() {
       LOGGER ok "MASQUERADE on $ETHERNET_IF present"
     else
       LOGGER warn "No MASQUERADE on $ETHERNET_IF"
-      $FIX && { sudo iptables -t nat -A POSTROUTING -o "$ETHERNET_IF" -j MASQUERADE; }
+      if [[ "$FIX" == true ]]; then
+        sudo iptables -t nat -A POSTROUTING -o "$ETHERNET_IF" -j MASQUERADE
+      fi
     fi
   fi
 
@@ -224,11 +245,11 @@ _check_nat() {
     LOGGER ok "FORWARD ESTABLISHED,RELATED present"
   else
     LOGGER warn "FORWARD ESTABLISHED,RELATED missing"
-    $FIX && sudo iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+    _do_if_fix sudo iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
   fi
 
   # Optional: save rules (if netfilter-persistent plugin available)
-  $FIX && _try sudo run-parts --verbose /usr/share/netfilter-persistent/plugins.d
+  _do_if_fix _try sudo run-parts --verbose /usr/share/netfilter-persistent/plugins.d
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -288,7 +309,9 @@ _check_hostapd() {
       LOGGER ok "hostapd running"
     else
       LOGGER warn "hostapd inactive"
-      $FIX && { sudo systemctl restart hostapd || true; }
+      if [[ "$FIX" == true ]]; then
+        sudo systemctl restart hostapd || true
+      fi
     fi
     # Recent logs
     sudo journalctl -u hostapd -n 60 --no-pager || true
