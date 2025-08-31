@@ -29,21 +29,21 @@ init_dependencies() {
     git
   )
 
-MISSING_PACKAGES=()
+  MISSING_PACKAGES=()
 
-for pkg in "${REQUIRED_PACKAGES[@]}"; do
-  if ! dpkg -s "$pkg" &>/dev/null; then
-    MISSING_PACKAGES+=("$pkg")
+  for pkg in "${REQUIRED_PACKAGES[@]}"; do
+    if ! dpkg -s "$pkg" &>/dev/null; then
+      MISSING_PACKAGES+=("$pkg")
+    fi
+  done
+
+  if (( ${#MISSING_PACKAGES[@]} > 0 )); then
+    LOGGER warn "Missing packages: ${MISSING_PACKAGES[*]}"
+    LOGGER step "Installing missing packages..."
+    sudo apt update
+    sudo apt install -y "${MISSING_PACKAGES[@]}"
+    LOGGER ok "All required packages installed"
+  else
+    LOGGER ok "All required packages already installed"
   fi
-done
-
-if (( ${#MISSING_PACKAGES[@]} > 0 )); then
-  LOGGER warn "Missing packages: ${MISSING_PACKAGES[*]}"
-  LOGGER step "Installing missing packages..."
-  sudo apt update
-  sudo apt install -y "${MISSING_PACKAGES[@]}"
-  LOGGER ok "All required packages installed"
-else
-  LOGGER ok "All required packages already installed"
-fi
 }
