@@ -33,6 +33,11 @@ ALLOW_ALL_IPS_FILE="$ALLOWLIST_DIR/allow_all_ips.txt"
 WHITELIST_FILE="$ALLOWLIST_DIR/whitelist.txt"
 
 _cmd_ok() { command -v "$1" >/dev/null 2>&1; }
+_try() { "$@" || true; }
+
+_num_or_zero() {
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then printf '%s' "$1"; else printf '0'; fi
+}
 
 _load_env() {
   local env_file="$ROOT_DIR/.env"
@@ -51,15 +56,11 @@ _load_env() {
   LOGGER info "NET_MODE=$NET_MODE  ETH=${ETHERNET_IF:-<none>}  WIFI=${WIRELESS_IF:-<none>}  BR=$BRIDGE_IF  AP_IP=$AP_IP  FIX=$FIX"
 }
 
-_section() { LOGGER step "$1"; }
-
-_try() { "$@" || true; }
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Basic sanity: rfkill / interface presence / iw capabilities
 # ──────────────────────────────────────────────────────────────────────────────
 _check_rfkill() {
-  _section "rfkill"
+  LOGGER step "rfkill"
   if _cmd_ok rfkill; then
     rfkill list || true
     if rfkill list | grep -qi "Soft blocked: yes"; then
@@ -73,7 +74,7 @@ _check_rfkill() {
 }
 
 _check_ifaces() {
-  _section "Interfaces (ip -br addr / link)"
+  LOGGER step "Interfaces (ip -br addr / link)"
   ip -br addr || true
   ip -br link || true
 
@@ -95,7 +96,7 @@ _check_ifaces() {
 }
 
 _check_iw_cap() {
-  _section "Wi-Fi capabilities (iw list)"
+  LOGGER step "Wi-Fi capabilities (iw list)"
   if _cmd_ok iw; then
     if iw list | awk '/Supported interface modes:/,/^$/' | grep -q ' AP'; then
       LOGGER ok "Driver reports AP mode support"
@@ -119,7 +120,7 @@ _check_iw_cap() {
 # Ensure NM/wpa_supplicant don’t own the AP interface
 # ──────────────────────────────────────────────────────────────────────────────
 _release_nm_and_wpa() {
-  _section "NetworkManager / wpa_supplicant"
+  LOGGER step "NetworkManager / wpa_supplicant"
   if _cmd_ok nmcli; then
     nmcli dev status || true
     if nmcli dev status | awk -v ifc="$WIRELESS_IF" '$1==ifc{print $3}' | grep -vq "^unmanaged$"; then
@@ -161,7 +162,7 @@ _release_nm_and_wpa() {
 # ──────────────────────────────────────────────────────────────────────────────
 _ensure_ap_ip() {
   [[ -z "${WIRELESS_IF:-}" ]] && return 0
-  _section "AP link & IP"
+  LOGGER step "AP link & IP"
   if ! ip -4 addr show dev "$WIRELESS_IF" | grep -q " $AP_IP/"; then
     LOGGER warn "No $AP_IP/24 on $WIRELESS_IF"
     if $FIX; then
@@ -181,7 +182,7 @@ _ensure_ap_ip() {
 # ──────────────────────────────────────────────────────────────────────────────
 _check_dnsmasq() {
   [[ "$NET_MODE" == "router" ]] || return 0
-  _section "dnsmasq"
+  LOGGER step "dnsmasq"
   if ! systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
     LOGGER warn "dnsmasq.service not installed"
     return 0
@@ -226,7 +227,7 @@ _check_dnsmasq() {
 # ──────────────────────────────────────────────────────────────────────────────
 _check_nat() {
   [[ "$NET_MODE" == "router" ]] || return 0
-  _section "NAT / iptables"
+  LOGGER step "NAT / iptables"
 
   if [[ -n "${ETHERNET_IF:-}" ]]; then
     if sudo iptables -t nat -C POSTROUTING -o "$ETHERNET_IF" -j MASQUERADE 2>/dev/null; then
@@ -261,48 +262,54 @@ _check_nat() {
 # ──────────────────────────────────────────────────────────────────────────────
 _check_allowlist() {
   [[ "$NET_MODE" == "router" ]] || return 0
-
   _section "Allowlist (ipset)"
+
   if sudo ipset list whitelist &>/dev/null; then
     sudo ipset list whitelist | head -n 20 || true
   else
     LOGGER warn "ipset 'whitelist' missing"
   fi
+
   if sudo ipset list allow_all &>/dev/null; then
     sudo ipset list allow_all | head -n 20 || true
   else
     LOGGER warn "ipset 'allow_all' missing"
   fi
 
+  # Cohérence fichier ↔ ipset (fichiers vides acceptés)
   if [[ -f "$ALLOW_ALL_IPS_FILE" ]]; then
-    local -i nfile=0 nset=0
+    # Lire la quantité de lignes utiles du fichier (0 si vide / commentaires)
+    local raw_file_count
+    raw_file_count="$(grep -Evc '^\s*($|#)' "$ALLOW_ALL_IPS_FILE" 2>/dev/null || true)"
+    local nfile; nfile="$(_num_or_zero "$raw_file_count")"
 
-    nfile=$(grep -Evc '^\s*($|#)' "$ALLOW_ALL_IPS_FILE" 2>/dev/null || echo 0)
-
+    # Compter précisément les membres actuels de l'ipset (0 si absent)
+    local raw_set_count="0"
     if sudo ipset list allow_all &>/dev/null; then
-      nset=$(
+      raw_set_count="$(
         sudo ipset -q list allow_all \
         | awk 'BEGIN{inm=0;c=0}
               /^Members:/ {inm=1; next}
               inm && $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {c++}
               END{print c+0}'
-      )
+      )"
     fi
+    local nset; nset="$(_num_or_zero "$raw_set_count")"
 
     LOGGER info "allow_all: file=${nfile}  set=${nset}"
 
+    # ⚠️ surtout pas d'évaluation « nue » sous set -e
     if (( nfile > 0 && nset == 0 )); then
       LOGGER warn "allow_all_ips.txt n'est pas vide mais l'ipset 'allow_all' est vide → lance 070_allowlist.sh"
     fi
   fi
 }
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # hostapd
 # ──────────────────────────────────────────────────────────────────────────────
 _check_hostapd() {
-  _section "hostapd"
+  LOGGER step "hostapd"
   if [[ -f "$HOSTAPD_CONF" ]]; then
     LOGGER ok "$HOSTAPD_CONF present"
     sudo sed -n '1,80p' "$HOSTAPD_CONF" | sed 's/^/  /'
@@ -350,7 +357,7 @@ _check_hostapd() {
 # ──────────────────────────────────────────────────────────────────────────────
 _quick_smoke_router() {
   [[ "$NET_MODE" == "router" ]] || return 0
-  _section "Quick smoke (router)"
+  LOGGER step "Quick smoke (router)"
   # Port 53 bind on AP_IP
   sudo ss -ltnp | grep -E "LISTEN .* ${AP_IP}:53" || LOGGER warn "dnsmasq does not seem to listen on ${AP_IP}:53"
   # DHCP leases
