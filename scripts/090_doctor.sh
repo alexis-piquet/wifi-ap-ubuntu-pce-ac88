@@ -245,11 +245,17 @@ _check_nat() {
     LOGGER ok "FORWARD ESTABLISHED,RELATED present"
   else
     LOGGER warn "FORWARD ESTABLISHED,RELATED missing"
-    _do_if_fix sudo iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+    
+    if [[ "$FIX" == true ]]; then
+      sudo iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+    fi
   fi
 
   # Optional: save rules (if netfilter-persistent plugin available)
-  _do_if_fix _try sudo run-parts --verbose /usr/share/netfilter-persistent/plugins.d
+    
+  if [[ "$FIX" == true ]]; then
+    _try sudo run-parts --verbose /usr/share/netfilter-persistent/plugins.d
+  fi
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
