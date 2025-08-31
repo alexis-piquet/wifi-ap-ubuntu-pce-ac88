@@ -378,5 +378,8 @@ init_doctor() {
   _quick_smoke_router
 
   LOGGER ok "Diagnostics completed"
-  [[ "$FIX" == true ]] && LOGGER ok "Best-effort fixes applied (where safe)."
+  
+  if [[ "$FIX" == true ]]; then
+    LOGGER ok "Best-effort fixes applied (where safe)."
+  fi
 }
