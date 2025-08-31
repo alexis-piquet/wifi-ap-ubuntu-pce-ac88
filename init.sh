@@ -24,15 +24,15 @@ init() {
   LOGGER info "Starting installation..."
 
   SCRIPTS_000_DEPENDENCIES init_dependencies
-  SCRIPTS_010_ENV init_env
-  SCRIPTS_020_FIRMWARE init_firmware
-  SCRIPTS_030_NETWORK init_network
-  SCRIPTS_040_HOSTAPD init_hostapd
-  SCRIPTS_050_DNSMASQ init_dnsmasq
-  SCRIPTS_060_NAT init_nat
-  SCRIPTS_070_ALLOWLIST init_allowlist
-  SCRIPTS_080_SERVICES init_services
-  SCRIPTS_090_DOCTOR init_doctor
+  SCRIPTS_010_ENV          init_env
+  SCRIPTS_020_FIRMWARE     init_firmware
+  SCRIPTS_030_NETWORK      init_network
+  SCRIPTS_040_HOSTAPD      init_hostapd
+  SCRIPTS_050_DNSMASQ      init_dnsmasq
+  SCRIPTS_060_NAT          init_nat
+  SCRIPTS_070_ALLOWLIST    init_allowlist
+  SCRIPTS_080_SERVICES     init_services
+  SCRIPTS_090_DOCTOR       init_doctor
 
   LOGGER ok "Installation complete. You can now run: ./start.sh"
 }
