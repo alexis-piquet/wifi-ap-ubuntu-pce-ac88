@@ -18,8 +18,8 @@ init_env() {
   fi
 
   LOGGER step "Detecting interfaces via nmcli"
-  ethernet_id=$(nmcli dev status | awk '$2 == "ethernet" && $3 != "unavailable" {print $1}' | head -n1 || true)
-  wireless_id=$(nmcli dev status | awk '$2 == "wifi" && $3 != "unavailable" {print $1}' | head -n1 || true)
+  ethernet_id=$(nmcli -t -f DEVICE,TYPE,STATE dev | awk -F: '$2=="ethernet" && $3!="unavailable"{print $1; exit}' || true)
+  wireless_id=$(nmcli -t -f DEVICE,TYPE,STATE dev | awk -F: '$2=="wifi"     && $3!="unavailable"{print $1; exit}' || true)
 
   if [[ -z "$ethernet_id" ]]; then
     LOGGER error "Ethernet interface not found or still unmanaged"
@@ -31,47 +31,57 @@ init_env() {
     LOGGER warn "Wi-Fi interface not found (yet) — this may be expected before firmware setup"
   fi
 
-  LOGGER step "Checking for bridge (br0)"
-  bridge_id=""
+  LOGGER step "Ensuring bridge br0 exists and enslaving $ethernet_id"
+  bridge_id="br0"
 
-  if ! ip link show br0 &>/dev/null; then
-    LOGGER info "Creating bridge br0 and attaching $ethernet_id"
+  # 0) Nettoyage d’anciens profils conflictuels
+  nmcli -t -f NAME,DEVICE con show --active \
+    | awk -F: -v d="$ethernet_id" '$2==d{print $1}' \
+    | while read -r active_con; do
+        LOGGER info "Detaching active connection on $ethernet_id: $active_con"
+        nmcli con down "$active_con" || true
+        nmcli con delete "$active_con" || true
+      done
 
-    sudo nmcli connection delete br0 &>/dev/null || true
-    sudo nmcli connection delete "bridge-slave-$ethernet_id" &>/dev/null || true
+  # Supprime d’anciens profils de bridge si présents
+  nmcli con delete br0                2>/dev/null || true
+  nmcli con delete "br0-port-$ethernet_id" 2>/dev/null || true
 
-    sudo nmcli connection add type bridge ifname br0 con-name br0
-    sudo nmcli connection add type ethernet con-name "bridge-slave-$ethernet_id" ifname "$ethernet_id" master br0
+  # 1) Créer le bridge
+  nmcli con add type bridge ifname br0 con-name br0 ipv4.method auto ipv6.method ignore
 
-    for i in {1..5}; do
-      if ip link show br0 &>/dev/null; then
-        break
-      fi
-      LOGGER info "Waiting for br0 to appear..."
-      sleep 1
-    done
+  # 2) Ajouter le port de bridge (type correct: bridge-slave)
+  nmcli con add type bridge-slave ifname "$ethernet_id" con-name "br0-port-$ethernet_id" master br0
 
-    sudo nmcli connection up "bridge-slave-$ethernet_id" || {
-      LOGGER error "Failed to bring up bridge slave"
-      exit 1
-    }
-
-    sudo nmcli connection up br0 || {
-      LOGGER error "Failed to bring up bridge br0"
-      nmcli connection show
-      exit 1
-    }
-
-    bridge_id="br0"
-  else
-    LOGGER info "Bridge already exists: br0"
-    bridge_id="br0"
+  # 3) Monter le port puis le bridge (ou l’inverse si tu préfères)
+  if ! nmcli con up "br0-port-$ethernet_id"; then
+    LOGGER error "Failed to bring up bridge slave $ethernet_id"
+    nmcli -f NAME,UUID,TYPE,DEVICE con
+    nmcli dev
+    exit 1
   fi
+
+  if ! nmcli con up br0; then
+    LOGGER error "Failed to bring up bridge br0"
+    nmcli -f NAME,UUID,TYPE,DEVICE con
+    exit 1
+  fi
+
+  # Attendre que br0 soit visible et up
+  for i in {1..10}; do
+    if ip link show br0 &>/dev/null; then
+      state=$(cat /sys/class/net/br0/operstate 2>/dev/null || echo down)
+      [[ "$state" == "up" || "$state" == "unknown" ]] && break
+    fi
+    LOGGER info "Waiting for br0 to be up…"
+    sleep 1
+  done
 
   LOGGER info "Ethernet: $ethernet_id"
   LOGGER info "Wireless: $wireless_id"
-  LOGGER info "Bridge: $bridge_id"
+  LOGGER info "Bridge:   $bridge_id"
 
+  # Write .env dans le répertoire courant (si tu veux un state-dir, adapte ici)
   printf "export ethernet_id=%s\nexport wireless_id=%s\nexport bridge_id=%s\n" \
     "$ethernet_id" "$wireless_id" "$bridge_id" > .env
 
