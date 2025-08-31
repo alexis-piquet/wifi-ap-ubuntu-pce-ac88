@@ -11,7 +11,7 @@ export LOG_NAMESPACE="[START]"
 source_as "./lib/logger.sh" "LOGGER"
 
 _load_env() {
-  local env_file="$ROOT_DIR/.env"
+  local env_file="$CURRENT_PATH/.env"
   if [[ ! -f "$env_file" ]]; then
     LOGGER error "Missing .env — run ./init.sh first"
     exit 1
@@ -127,7 +127,7 @@ _summary() {
 }
 
 main() {
-  LOGGER section "STARTING WI-FI ACCESS POINT"
+  LOGGER step "STARTING WI-FI ACCESS POINT"
   _load_env
   _rfkill_and_regdomain
   _assign_ap_ip_if_needed

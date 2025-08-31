@@ -56,7 +56,7 @@ _summary() {
 }
 
 main() {
-  LOGGER section "STOPPING WI-FI ACCESS POINT"
+  LOGGER step "STOPPING WI-FI ACCESS POINT"
   _load_env
   _stop_hostapd
   _stop_dnsmasq_if_router
