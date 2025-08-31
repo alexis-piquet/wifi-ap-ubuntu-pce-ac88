@@ -32,8 +32,6 @@ ALLOWLIST_DIR="$ROOT_DIR/config/allowlist"
 ALLOW_ALL_IPS_FILE="$ALLOWLIST_DIR/allow_all_ips.txt"
 WHITELIST_FILE="$ALLOWLIST_DIR/whitelist.txt"
 
-_do_if_fix() { [[ "$FIX" == true ]] || return 0; "$@"; }
-
 _cmd_ok() { command -v "$1" >/dev/null 2>&1; }
 
 _load_env() {
