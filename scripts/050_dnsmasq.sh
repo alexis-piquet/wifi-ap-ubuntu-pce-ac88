@@ -16,29 +16,44 @@ _load_env() {
   # shellcheck source=/dev/null
   source "$env_file"
 
-  : "${NET_MODE:=router}"              # router | bridge
-  : "${WIRELESS_IF:=}"                 # may be empty if firmware not yet ready
-  : "${AP_IP:=${AP_CIDR%/*}}"
+  : "${NET_MODE:=router}"           # router | bridge
+  : "${WIRELESS_IF:=}"              # may still be empty if firmware not ready
+  : "${AP_CIDR:=}"                  # e.g. 10.0.0.1/24
+  : "${AP_IP:=}"                    # may be set directly in .env
   : "${DHCP_START:=}"
   : "${DHCP_END:=}"
 
-  # dnsmasq template wait WIRELESS_INTERFACE
-  export WIRELESS_INTERFACE="${WIRELESS_IF}"
+  # Compute AP_IP safely if not set
+  if [[ -z "${AP_IP:-}" ]]; then
+    if [[ -n "${AP_CIDR:-}" ]]; then
+      AP_IP="${AP_CIDR%/*}"
+    else
+      AP_IP="10.0.0.1"
+    fi
+  fi
 
-  if [[ "$NET_MODE" != "router" ]]; then
-    LOGGER info "NET_MODE=$NET_MODE → dnsmasq not required (skipping)."
+  # Compute DHCP range safely if not set (assume /24)
+  if [[ -z "${DHCP_START:-}" || -z "${DHCP_END:-}" ]]; then
+    local ap_net
+    ap_net="$(printf "%s\n" "$AP_IP" | awk -F. '{printf "%d.%d.%d",$1,$2,$3}')"
+    DHCP_START="${ap_net}.10"
+    DHCP_END="${ap_net}.200"
+  fi
+
+  # Template expects WIRELESS_INTERFACE
+  WIRELESS_INTERFACE="${WIRELESS_IF:-${WIRELESS_INTERFACE:-}}"
+
+  if [[ "${NET_MODE}" != "router" ]]; then
+    LOGGER info "NET_MODE=${NET_MODE} → dnsmasq not required (skipping)."
     exit 0
   fi
 
-  if [[ -z "${WIRELESS_INTERFACE}" ]]; then
-    LOGGER warn "WIRELESS_IF is empty — dnsmasq may fail to bind; continue anyway."
+  if [[ -z "${WIRELESS_INTERFACE:-}" ]]; then
+    LOGGER warn "WIRELESS_IF is empty — dnsmasq may fail to bind; continuing anyway."
   fi
-  if [[ -z "${DHCP_START}" || -z "${DHCP_END}" ]]; then
-    # Default values ​​derived from AP_IP ( /24 )
-    local ap_net; ap_net="$(echo "$AP_IP" | awk -F. '{printf "%d.%d.%d",$1,$2,$3}')"
-    export DHCP_START="${ap_net}.10"
-    export DHCP_END="${ap_net}.200"
-  fi
+
+  # Export only what the template/envsubst needs
+  export WIRELESS_INTERFACE AP_IP DHCP_START DHCP_END
 }
 
 _render_wifi_ap_conf() {
@@ -48,33 +63,36 @@ _render_wifi_ap_conf() {
   LOGGER step "Rendering dnsmasq AP config → $dst"
   sudo install -d -m 0755 /etc/dnsmasq.d
 
-  export AP_IP DHCP_START DHCP_END
   if [[ -f "$tpl" ]]; then
     if command -v envsubst >/dev/null 2>&1; then
       envsubst '$WIRELESS_INTERFACE$AP_IP$DHCP_START$DHCP_END' < "$tpl" \
         | sudo tee "$dst" >/dev/null
     else
+      # Fallback without envsubst
       sudo sed \
-        -e "s|\${WIRELESS_INTERFACE}|${WIRELESS_INTERFACE}|g" \
-        -e "s|\${AP_IP}|${AP_IP}|g" \
-        -e "s|\${DHCP_START}|${DHCP_START}|g" \
-        -e "s|\${DHCP_END}|${DHCP_END}|g" \
+        -e "s|\${WIRELESS_INTERFACE}|${WIRELESS_INTERFACE:-}|g" \
+        -e "s|\${AP_IP}|${AP_IP:-}|g" \
+        -e "s|\${DHCP_START}|${DHCP_START:-}|g" \
+        -e "s|\${DHCP_END}|${DHCP_END:-}|g" \
         "$tpl" | sudo tee "$dst" >/dev/null
     fi
   else
     LOGGER warn "Missing $tpl — generating a minimal config"
     sudo tee "$dst" >/dev/null <<EOF
-interface=${WIRELESS_INTERFACE}
+# listening only AP interface
+interface=${WIRELESS_INTERFACE:-}
 bind-interfaces
-listen-address=${AP_IP}
+listen-address=${AP_IP:-10.0.0.1}
 
+# upstream DNS
 no-resolv
 server=1.1.1.1
 server=1.0.0.1
 
-dhcp-range=${DHCP_START},${DHCP_END},255.255.255.0,12h
-dhcp-option=option:router,${AP_IP}
-dhcp-option=option:dns-server,${AP_IP}
+# DHCP
+dhcp-range=${DHCP_START:-10.0.0.10},${DHCP_END:-10.0.0.200},255.255.255.0,12h
+dhcp-option=option:router,${AP_IP:-10.0.0.1}
+dhcp-option=option:dns-server,${AP_IP:-10.0.0.1}
 EOF
   fi
 
@@ -85,7 +103,7 @@ EOF
 _sanitize_bind_options() {
   LOGGER step "Sanitizing dnsmasq bind options (remove bind-dynamic / stray bind-interfaces)"
 
-  # 1) /etc/default/dnsmasq (delete options CLI --bind-*)
+  # 1) /etc/default/dnsmasq (strip CLI bind flags)
   if [[ -f /etc/default/dnsmasq ]]; then
     sudo sed -i -E 's/(DNSMASQ_OPTS|OPTIONS)=.*$/DNSMASQ_OPTS=""/' /etc/default/dnsmasq 2>/dev/null || true
     sudo sed -i -E 's/--bind-(interfaces|dynamic)//g' /etc/default/dnsmasq || true
@@ -98,12 +116,12 @@ _sanitize_bind_options() {
   sudo find /etc/dnsmasq.d -maxdepth 1 -type f -name "*.conf" ! -name "wifi-ap.conf" -print0 \
     | xargs -0 -r sudo sed -i -E '/^\s*bind-(interfaces|dynamic)\s*$/d'
 
-  # Make sure OUR file keeps bind-interfaces
+  # Ensure our file keeps bind-interfaces
   sudo sed -i -E 's/^\s*bind-(interfaces|dynamic)\s*$/bind-interfaces/' /etc/dnsmasq.d/wifi-ap.conf
 }
 
 _check_ap_ip_presence() {
-  if [[ -n "${WIRELESS_INTERFACE}" ]]; then
+  if [[ -n "${WIRELESS_INTERFACE:-}" ]]; then
     if ! ip -4 addr show dev "${WIRELESS_INTERFACE}" | grep -q " ${AP_IP}/"; then
       LOGGER warn "AP_IP ${AP_IP} not present on ${WIRELESS_INTERFACE}. (030_network.sh should assign it in router mode)"
     fi
@@ -117,9 +135,9 @@ _test_and_restart() {
     exit 1
   fi
 
-  # Info: resolved holds :53? (not blocking because we bind on the IF AP)
+  # FYI: resolved may hold :53; we bind to the AP interface, so no conflict.
   if sudo ss -ltnp '( sport = :53 )' 2>/dev/null | grep -q systemd-resolved; then
-    LOGGER info "systemd-resolved owns :53; dnsmasq is bound to ${WIRELESS_INTERFACE}:${AP_IP} (no conflict)."
+    LOGGER info "systemd-resolved owns :53; dnsmasq is bound to ${WIRELESS_INTERFACE:-<unset>}:${AP_IP}."
   fi
 
   LOGGER step "Restarting dnsmasq service"
@@ -138,5 +156,5 @@ init_dnsmasq() {
   _sanitize_bind_options
   _check_ap_ip_presence
   _test_and_restart
-  LOGGER ok "dnsmasq configured for interface ${WIRELESS_INTERFACE} (AP ${AP_IP})"
+  LOGGER ok "dnsmasq configured for interface ${WIRELESS_INTERFACE:-<unset>} (AP ${AP_IP})"
 }
