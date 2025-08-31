@@ -262,7 +262,7 @@ _check_nat() {
 # ──────────────────────────────────────────────────────────────────────────────
 _check_allowlist() {
   [[ "$NET_MODE" == "router" ]] || return 0
-  _section "Allowlist (ipset)"
+  LOGGER step "Allowlist (ipset)"
 
   if sudo ipset list whitelist &>/dev/null; then
     sudo ipset list whitelist | head -n 20 || true
@@ -276,14 +276,11 @@ _check_allowlist() {
     LOGGER warn "ipset 'allow_all' missing"
   fi
 
-  # Cohérence fichier ↔ ipset (fichiers vides acceptés)
   if [[ -f "$ALLOW_ALL_IPS_FILE" ]]; then
-    # Lire la quantité de lignes utiles du fichier (0 si vide / commentaires)
     local raw_file_count
     raw_file_count="$(grep -Evc '^\s*($|#)' "$ALLOW_ALL_IPS_FILE" 2>/dev/null || true)"
     local nfile; nfile="$(_num_or_zero "$raw_file_count")"
 
-    # Compter précisément les membres actuels de l'ipset (0 si absent)
     local raw_set_count="0"
     if sudo ipset list allow_all &>/dev/null; then
       raw_set_count="$(
@@ -298,7 +295,6 @@ _check_allowlist() {
 
     LOGGER info "allow_all: file=${nfile}  set=${nset}"
 
-    # ⚠️ surtout pas d'évaluation « nue » sous set -e
     if (( nfile > 0 && nset == 0 )); then
       LOGGER warn "allow_all_ips.txt n'est pas vide mais l'ipset 'allow_all' est vide → lance 070_allowlist.sh"
     fi
