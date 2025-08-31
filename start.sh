@@ -1,80 +1,138 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-source "$CURRENT_PATH/lib/utils.sh"
-
+source "$ROOT_DIR/lib/utils.sh"
 export LOG_NAMESPACE="[START]"
-source_as "$CURRENT_PATH/lib/logger.sh" "LOGGER"
+source_as "$ROOT_DIR/lib/logger.sh" "LOGGER"
 
-start() {
-  LOGGER section "STARTING WI-FI ACCESS POINT"
-
-  if [[ -f "$CURRENT_PATH/.env" ]]; then
-    source "$CURRENT_PATH/.env"
-  else
-    LOGGER error "Missing .env file – cannot proceed"
+_load_env() {
+  local env_file="$ROOT_DIR/.env"
+  if [[ ! -f "$env_file" ]]; then
+    LOGGER error "Missing .env — run ./init.sh first"
     exit 1
   fi
+  # shellcheck source=/dev/null
+  source "$env_file"
 
-  LOGGER step "Enabling IPv4 forwarding (runtime)"
-  sudo sysctl -w net.ipv4.ip_forward=1
-
-  LOGGER step "Ensuring NAT is configured"
-  sudo iptables -t nat -C POSTROUTING -o "$ethernet_id" -j MASQUERADE 2>/dev/null || {
-    sudo iptables -t nat -A POSTROUTING -o "$ethernet_id" -j MASQUERADE
-    info "NAT rule added to iptables"
-  }
-
-  LOGGER step "Restarting NetworkManager"
-  sudo systemctl restart NetworkManager
-
-  LOGGER step "Cleaning iptables rules using ipsets"
-
-  sudo iptables -t nat -D PREROUTING -m set --match-set allow_all dst -j RETURN 2>/dev/null || true
-  sudo iptables -t nat -D PREROUTING -m set --match-set whitelist dst -j RETURN 2>/dev/null || true
-
-  LOGGER step "Cleaning existing ipsets before restore"
-  for setname in allow_all whitelist; do
-    if sudo ipset list "$setname" &>/dev/null; then
-      sudo ipset flush "$setname" || true
-      sudo ipset destroy "$setname" || true
-    fi
-  done
-
-  LOGGER step "Restarting dnsmasq (via NetworkManager)"
-  sudo systemctl restart systemd-resolved
-
-  LOGGER step "Setting regulatory domain and checking 5GHz availability"
-  sudo iw reg set FR
-
-  LOGGER step "Starting hostapd service"
-  sudo systemctl restart hostapd
-
-  LOGGER step "Active iptables rules (nat + filter)"
-  sudo iptables -L -n -v --line-numbers
-  sudo iptables -t nat -L -n -v --line-numbers
-
-  LOGGER step "Active ipsets"
-  sudo ipset list
-
-  sleep 2
-
-  # Check service status
-  if systemctl is-active --quiet hostapd; then
-    LOGGER ok "hostapd is running"
-  else
-    LOGGER error "hostapd failed to start"
-    sudo journalctl -u hostapd --no-pager -n 20
-    exit 1
-  fi
-
-  LOGGER step "Checking interface IP assignment"
-  ip addr show "$wireless_id" | grep "inet " || warn "$wireless_id has no IP assigned"
-
-  LOGGER step "Connected clients on $wireless_id"
-  sudo iw dev "$wireless_id" station dump || LOGGER info "No clients connected"
-
-  LOGGER ok "Access point is up and running"
+  : "${NET_MODE:=router}"             # router | bridge
+  : "${ETHERNET_IF:?Set ETHERNET_IF in .env}"
+  : "${WIRELESS_IF:?Set WIRELESS_IF in .env}"
+  : "${BRIDGE_IF:=br0}"
+  : "${AP_CIDR:=10.0.0.1/24}"
+  : "${AP_IP:=${AP_CIDR%/*}}"
+  : "${WIRELESS_COUNTRY:=FR}"
 }
+
+_rfkill_and_regdomain() {
+  if command -v rfkill >/dev/null 2>&1; then
+    LOGGER step "Unblocking Wi-Fi (rfkill)"
+    sudo rfkill unblock wifi || true
+  fi
+  if command -v iw >/dev/null 2>&1; then
+    LOGGER info "Setting reg domain: ${WIRELESS_COUNTRY}"
+    sudo iw reg set "${WIRELESS_COUNTRY}" || true
+  fi
+}
+
+_assign_ap_ip_if_needed() {
+  [[ "$NET_MODE" == "router" ]] || return 0
+  LOGGER step "Ensuring AP IP (${AP_CIDR}) on ${WIRELESS_IF}"
+  sudo ip link set "$WIRELESS_IF" up || true
+  if ! ip -4 addr show dev "$WIRELESS_IF" | grep -q " ${AP_IP}/"; then
+    sudo ip addr replace "$AP_CIDR" dev "$WIRELESS_IF"
+  fi
+  LOGGER info "Interface summary: $(ip -br addr show "$WIRELESS_IF" | awk '{$1=$1;print}')"
+}
+
+_enable_forward_runtime() {
+  [[ "$NET_MODE" == "router" ]] || return 0
+  LOGGER step "Enabling IPv4 forwarding (runtime)"
+  sudo sysctl -w net.ipv4.ip_forward=1 >/dev/null
+}
+
+_ensure_nat_and_forward_rules() {
+  [[ "$NET_MODE" == "router" ]] || return 0
+  LOGGER step "Ensuring NAT/forwarding rules (idempotent)"
+
+  # ESTABLISHED,RELATED
+  sudo iptables -C FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null \
+    || sudo iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+  # Prefer allowlist chain if present; else generic ACCEPT WiFi->Eth
+  if sudo iptables -S WIFI_ALLOWLIST &>/dev/null; then
+    sudo iptables -C FORWARD -i "$WIRELESS_IF" -o "$ETHERNET_IF" -j WIFI_ALLOWLIST 2>/dev/null \
+      || sudo iptables -I FORWARD 1 -i "$WIRELESS_IF" -o "$ETHERNET_IF" -j WIFI_ALLOWLIST
+  else
+    sudo iptables -C FORWARD -i "$WIRELESS_IF" -o "$ETHERNET_IF" -j ACCEPT 2>/dev/null \
+      || sudo iptables -A FORWARD -i "$WIRELESS_IF" -o "$ETHERNET_IF" -j ACCEPT
+  fi
+
+  # MASQUERADE on WAN
+  sudo iptables -t nat -C POSTROUTING -o "$ETHERNET_IF" -j MASQUERADE 2>/dev/null \
+    || sudo iptables -t nat -A POSTROUTING -o "$ETHERNET_IF" -j MASQUERADE
+}
+
+_start_dnsmasq_if_router() {
+  [[ "$NET_MODE" == "router" ]] || return 0
+  if systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
+    LOGGER step "Starting dnsmasq"
+    # quick sanity
+    sudo dnsmasq --test --conf-file=/etc/dnsmasq.conf --conf-dir=/etc/dnsmasq.d || {
+      LOGGER error "dnsmasq --test failed"
+      exit 1
+    }
+    sudo systemctl restart dnsmasq
+    LOGGER ok "dnsmasq running"
+  else
+    LOGGER warn "dnsmasq.service not installed (expected in router mode)"
+  fi
+}
+
+_start_ipset_restore_if_present() {
+  if systemctl list-unit-files | grep -q '^ipset-restore\.service'; then
+    LOGGER step "Starting ipset-restore (best-effort)"
+    sudo systemctl start ipset-restore.service || true
+  fi
+}
+
+_start_hostapd() {
+  LOGGER step "Starting hostapd"
+  if [[ -f /etc/hostapd/hostapd.conf ]]; then
+    sudo hostapd -t /etc/hostapd/hostapd.conf || {
+      LOGGER error "hostapd config test failed"
+      exit 1
+    }
+  fi
+  sudo systemctl restart hostapd || {
+    LOGGER error "hostapd failed to start"; sudo journalctl -u hostapd -n 120 --no-pager || true; exit 1;
+  }
+  sleep 1
+  systemctl --no-pager --full status hostapd | sed -n '1,20p' || true
+  LOGGER ok "hostapd running"
+}
+
+_summary() {
+  LOGGER step "Quick status"
+  ip -br addr show "$WIRELESS_IF" || true
+  sudo ss -ltnp '( sport = :53 )' 2>/dev/null || true
+  if command -v iw >/dev/null 2>&1; then
+    sudo iw dev "$WIRELESS_IF" station dump || true
+  fi
+  LOGGER ok "Access point is up"
+}
+
+main() {
+  LOGGER section "STARTING WI-FI ACCESS POINT"
+  _load_env
+  _rfkill_and_regdomain
+  _assign_ap_ip_if_needed
+  _enable_forward_runtime
+  _ensure_nat_and_forward_rules
+  _start_dnsmasq_if_router
+  _start_ipset_restore_if_present
+  _start_hostapd
+  _summary
+}
+main "$@"

@@ -1,25 +1,109 @@
 ## 🧱 Project Architecture
-This project follows a modular and reproducible layout:
+This project follows a modular, reproducible layout:
 
 ```sh
-./server
-├── bin/                       # Custom firmware binaries
-│   ├── dhd.ko                 # Kernel module for Broadcom
-│   └── *.bin / *.zip          # Optional firmware blobs
-├── config/                    # Persistent configuration files
-│   ├── hostapd.conf           # WiFi configuration
-│   ├── dnsmasq.conf           # DHCP/DNS config
-│   ├── interfaces             # Static IP config
-│   ├── whitelist.txt          # Domains allowed for all clients
-│   ├── allow_all_ips.txt      # IPs allowed to access all domains
-│   ├── dnsmasq.d/             # Auto-generated: domain → ipset mapping
-│   └── ipset-restore.service  # Systemd unit to restore IP sets on boot
-├── lib/                       # Shared Bash utilities
-│   ├── log.sh                 # Logging system
-│   └── colors.sh              # Color helpers
-├── logs/                      # Daily logs
-├── scripts/                   # Modular install steps
-│   └── 00-... to 99-...       # Executed by install.sh
-├── install.sh                 # Runs the full setup pipeline
-└── start.sh                   # Starts the AP and restores runtime config
+.
+├── bin/                         # Optional local blobs/firmware
+│   ├── brcmfmac4366c-pcie.bin   # Broadcom Wi-Fi firmware (local takes precedence)
+│   ├── dhd.ko                   # (optional) Broadcom kernel module
+│   └── FW_*.zip                 # Original archives (optional)
+├── config/                      # Config sources (templates & units)
+│   ├── allowlist/
+│   │   ├── whitelist.txt        # Allowed domains → ipset "whitelist"
+│   │   └── allow_all_ips.txt    # Client IPs allowed everywhere → ipset "allow_all"
+│   ├── dnsmasq/
+│   │   ├── wifi-ap.conf         # AP template (envsubst → /etc/dnsmasq.d/wifi-ap.conf)
+│   │   └── whitelist.conf       # (generated) domain→ipset mapping (→ /etc/dnsmasq.d/)
+│   ├── hostapd/
+│   │   └── hostapd.conf         # Template (envsubst → /etc/hostapd/hostapd.conf)
+│   ├── netplan/
+│   │   └── 60-br0.yaml.tpl      # Bridge template (bridge mode)
+│   └── services/
+│       ├── hostapd.service      # Optional custom systemd unit
+│       └── ipset-restore.service# Restore ipsets at boot
+├── docs/                        # User/dev documentation
+│   ├── allowlist.md architecture.md cleanup.md installation.md logging.md …
+├── lib/                         # Shared Bash utilities
+│   ├── colors.sh
+│   ├── logger.sh                # Debug-level style logger + daily files
+│   └── utils.sh                 # Helpers (source_as, etc.)
+├── logs/                        # Daily logs (YYYY-MM-DD.log)
+├── scripts/                     # Atomic, idempotent steps
+│   ├── 000_dependencies.sh      # Dependencies (context-aware, non-interactive)
+│   ├── 010_env.sh               # Detect IFs + defaults → writes .env
+│   ├── 020_firmware.sh          # Broadcom firmware install + modprobe
+│   ├── 030_network.sh           # router: runtime AP IP | bridge: netplan/NM
+│   ├── 040_hostapd.sh           # Build/apt hostapd + render config + unit
+│   ├── 050_dnsmasq.sh           # (router) render, test, restart dnsmasq
+│   ├── 060_nat.sh               # (router) IPv4 forward + NAT, persistent
+│   ├── 070_allowlist.sh         # ipset + domain mapping + FORWARD chain
+│   ├── 080_services.sh          # Orchestrate services (dnsmasq/hostapd/ipset)
+│   └── 090_doctor.sh            # Diagnostics (mode-aware)
+├── init.sh                      # Runs the install pipeline (scripts/000 → 090)
+└── start.sh                     # Runtime helpers / (re)apply on boot if needed
 ```
+
+### 🔧 Modes & Backends
+
+* `NET_MODE`: `router` (default) or `bridge`.
+* `NET_BACKEND`: `netplan` (default) or `nm` (NetworkManager) for bridge mode.
+
+These (and more) are written/augmented by `scripts/010_env.sh` into `.env`. You can edit `.env` and rerun `init.sh`.
+
+### 🧪 Install Pipeline
+
+`./init.sh` executes, in order:
+
+1. **000\_dependencies** — install required packages (idempotent, non-interactive).
+2. **010\_env** — detect `ETHERNET_IF` / `WIRELESS_IF`, set sane defaults, write `.env`.
+3. **020\_firmware** — install `brcmfmac4366c-pcie.bin` (local or linux-firmware), reload module.
+4. **030\_network** —
+
+   * `router`: assign `AP_CIDR` to `WIRELESS_IF` **at runtime**.
+   * `bridge`: create `br0` via **netplan** (or **nm** if `NET_BACKEND=nm`).
+5. **040\_hostapd** — build or apt install; render `config/hostapd/hostapd.conf` (envsubst); install unit (don’t start).
+6. **050\_dnsmasq** — (router) render `wifi-ap.conf`, sanitize bind options, `--test`, restart.
+7. **060\_nat** — (router) enable IPv4 forward (sysctl.d), add NAT `MASQUERADE` + persist rules.
+8. **070\_allowlist** — create/populate ipsets, generate `/etc/dnsmasq.d/whitelist.conf`, add `WIFI_ALLOWLIST` chain.
+9. **080\_services** — enable/start `dnsmasq` (router) and `hostapd`, ensure `ipset-restore` if present.
+10. **090\_doctor** — diagnostics (hostapd/dnsmasq/NAT/ipsets), quick DNS tests, logs.
+
+### 🗂️ Files created on the system
+
+* `/etc/hostapd/hostapd.conf` ← rendered from `config/hostapd/hostapd.conf`.
+* `/etc/dnsmasq.d/wifi-ap.conf` ← rendered from `config/dnsmasq/wifi-ap.conf`.
+* `/etc/dnsmasq.d/whitelist.conf` ← generated by `070_allowlist.sh`.
+* `/etc/systemd/system/hostapd.service` ← installed if your custom unit is provided.
+* `/etc/systemd/system/ipset-restore.service` ← installed if provided.
+* `/etc/sysctl.d/99-wifi-ap.conf` ← `net.ipv4.ip_forward=1` (router).
+* `/etc/iptables/rules.v4` (if iptables-persistent is present) ← saved NAT/forward rules.
+
+### ⚙️ Key `.env` variables
+
+```sh
+# --- mode & backend ---
+export NET_MODE=router             # router | bridge
+export NET_BACKEND=netplan         # netplan | nm
+
+# --- interfaces ---
+export ETHERNET_IF                 # automatically detected if empty
+export WIRELESS_IF=                # automatically detected if empty
+export BRIDGE_IF=br0
+
+# --- sub-network AP (router mode) ---
+export AP_CIDR=10.0.0.1/24
+export AP_IP=10.0.0.1
+export AP_NET=10.0.0
+export DHCP_START=10.0.0.10
+export DHCP_END=10.0.0.200
+
+# --- hostapd ---
+export WIRELESS_SSID="MyAP"
+export WIRELESS_PASSWORD="ChangeMe123!"
+export WIRELESS_COUNTRY="FR"
+export CHANNEL=36
+
+```
+
+> Tip: run `010_env.sh` to initialize `.env`. Edit it as needed, then re-run `init.sh`.
+> Each script is idempotent and safe to replay.
