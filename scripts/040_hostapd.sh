@@ -128,7 +128,7 @@ _render_hostapd_conf_from_template() {
   LOGGER step "Rendering hostapd config → $dst"
   sudo install -d -m 0755 /etc/hostapd
 
-  # Variables expected by TON template
+  # Variables expected by YOUR template
   export WIRELESS_IF WIRELESS_SSID WIRELESS_PASSWORD WIRELESS_COUNTRY
 
   if command -v envsubst >/dev/null 2>&1; then
