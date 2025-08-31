@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$CURRENT_PATH"
 
-source "$ROOT_DIR/lib/utils.sh"
+source    "./lib/utils.sh"
+
 export LOG_NAMESPACE="[START]"
-source_as "$ROOT_DIR/lib/logger.sh" "LOGGER"
+
+source_as "./lib/logger.sh"               "LOGGER"
 
 _load_env() {
   local env_file="$ROOT_DIR/.env"
