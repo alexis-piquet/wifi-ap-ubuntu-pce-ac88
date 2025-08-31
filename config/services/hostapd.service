@@ -1,0 +1,13 @@
+[Unit]
+Description=hostapd (wifi AP)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/hostapd -dd -t -B /etc/hostapd/hostapd.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
