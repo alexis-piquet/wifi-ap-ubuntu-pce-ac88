@@ -8,7 +8,7 @@ source    "./lib/utils.sh"
 
 export LOG_NAMESPACE="[START]"
 
-source_as "./lib/logger.sh"               "LOGGER"
+source_as "./lib/logger.sh" "LOGGER"
 
 _load_env() {
   local env_file="$ROOT_DIR/.env"

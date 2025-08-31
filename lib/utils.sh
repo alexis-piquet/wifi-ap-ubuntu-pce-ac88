@@ -1,6 +1,5 @@
 #!/bin/bash
-
-set -e
+set -euo pipefail
 
 # 🎨 Color Variables
 RED='\033[0;31m'
