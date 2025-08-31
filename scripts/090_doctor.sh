@@ -261,6 +261,7 @@ _check_nat() {
 # ──────────────────────────────────────────────────────────────────────────────
 _check_allowlist() {
   [[ "$NET_MODE" == "router" ]] || return 0
+
   _section "Allowlist (ipset)"
   if sudo ipset list whitelist &>/dev/null; then
     sudo ipset list whitelist | head -n 20 || true
@@ -273,15 +274,29 @@ _check_allowlist() {
     LOGGER warn "ipset 'allow_all' missing"
   fi
 
-  # Basic consistency check with files (if present)
   if [[ -f "$ALLOW_ALL_IPS_FILE" ]]; then
-    local nfile nset
-    nfile=$(grep -Evc '^\s*($|#)' "$ALLOW_ALL_IPS_FILE" || true)
-    nset=$(sudo ipset list allow_all 2>/dev/null | grep -Ec '^\s*([0-9]{1,3}\.){3}[0-9]{1,3}\s*$' || true)
-    LOGGER info "allow_all: file=$nfile  set=$nset"
-    [[ "$nfile" -gt 0 && "$nset" -eq 0 ]] && LOGGER warn "allow_all file not empty but set is empty (remember to run 070_allowlist.sh)"
+    local -i nfile=0 nset=0
+
+    nfile=$(grep -Evc '^\s*($|#)' "$ALLOW_ALL_IPS_FILE" 2>/dev/null || echo 0)
+
+    if sudo ipset list allow_all &>/dev/null; then
+      nset=$(
+        sudo ipset -q list allow_all \
+        | awk 'BEGIN{inm=0;c=0}
+              /^Members:/ {inm=1; next}
+              inm && $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {c++}
+              END{print c+0}'
+      )
+    fi
+
+    LOGGER info "allow_all: file=${nfile}  set=${nset}"
+
+    if (( nfile > 0 && nset == 0 )); then
+      LOGGER warn "allow_all_ips.txt n'est pas vide mais l'ipset 'allow_all' est vide → lance 070_allowlist.sh"
+    fi
   fi
 }
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # hostapd
